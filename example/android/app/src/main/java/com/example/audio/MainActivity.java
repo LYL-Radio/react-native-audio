@@ -1,4 +1,4 @@
-package com.example.reactnativeaudio;
+package com.example.audio;
 
 import com.facebook.react.ReactActivity;
 

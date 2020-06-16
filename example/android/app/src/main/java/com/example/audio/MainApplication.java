@@ -1,7 +1,9 @@
-package com.example.reactnativeaudio;
+package com.example.audio;
 
 import android.app.Application;
 import android.content.Context;
+
+import com.example.audio.BuildConfig;
 import com.facebook.react.PackageList;
 import com.facebook.react.ReactApplication;
 import com.facebook.react.ReactNativeHost;

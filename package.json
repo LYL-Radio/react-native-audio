@@ -32,7 +32,9 @@
   "keywords": [
     "react-native",
     "ios",
-    "android"
+    "android",
+    "audio",
+    "player"
   ],
   "repository": "https://github.com/LYL-Radio/react-native-audio",
   "author": "Maxime Epain <me@maxep.me> (https://github.com/maxep)",
