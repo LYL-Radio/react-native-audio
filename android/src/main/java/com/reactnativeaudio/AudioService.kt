@@ -67,7 +67,7 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
     var manager: PlayerNotificationManager? = null
     var mediaSessionCompat: MediaSessionCompat? = null
     var mediaSessionConnector: MediaSessionConnector? = null
-    var bitmapTask: BitmapDownloaderTask? = null
+    var bitmapTask: AsyncTask<Void, Void, Bitmap?>? = null
   }
 
   private val reactContext: ReactContext?
@@ -143,7 +143,7 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
     val description = metadata["description"] as? String
 
     // Show lock screen controls and let apps like Google assistant manager playback.
-    val session = MediaSessionCompat(applicationContext, MEDIA_SESSION_TAG).apply { isActive = true }
+    val session = MediaSessionCompat(context, MEDIA_SESSION_TAG).apply { isActive = true }
     notification.mediaSessionCompat = session
 
     // Setup notification and media session
@@ -153,6 +153,7 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
       PLAYBACK_NOTIFICATION_ID,
 
       object : PlayerNotificationManager.MediaDescriptionAdapter {
+
         override fun createCurrentContentIntent(player: Player): PendingIntent? {
           val intent = Intent(context, AudioService::class.java)
           return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
@@ -166,13 +167,18 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
           return title
         }
 
+        override fun getCurrentSubText(player: Player): CharSequence? {
+          return null
+        }
+
         override fun getCurrentLargeIcon(player: Player, callback: PlayerNotificationManager.BitmapCallback): Bitmap? {
           audio?.bitmap?.let { return it }
+          val url = artwork ?: return null
 
-          artwork?.let {
-            notification.bitmapTask = BitmapDownloaderTask(it, callback)
-            notification.bitmapTask?.execute()
-          }
+          notification.bitmapTask = BitmapDownloaderTask(url) { bitmap ->
+            callback.onBitmap(bitmap)
+            audio?.bitmap = bitmap
+          }.execute()
 
           return null
         }
@@ -363,20 +369,21 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
     return true
   }
 
-  inner class BitmapDownloaderTask(url: String, callback: PlayerNotificationManager.BitmapCallback): AsyncTask<Void, Void, Bitmap>() {
+  class BitmapDownloaderTask(
+    private val url: String,
+    private val callback: (Bitmap) -> Unit
+  ): AsyncTask<Void, Void, Bitmap?>() {
 
-    val url = url
-    val callback = callback
-
-    override fun doInBackground(vararg params: Void?): Bitmap {
-      val url = URL(url)
-      return BitmapFactory.decodeStream(url.openConnection().getInputStream());
+    override fun doInBackground(vararg params: Void?): Bitmap? {
+      return try {
+        val url = URL(url)
+        BitmapFactory.decodeStream(url.openConnection().getInputStream())
+      } catch (e: Exception) { null }
     }
 
     override fun onPostExecute(result: Bitmap?) {
-      audio?.bitmap = result
       val bitmap = result ?: return
-      callback.onBitmap(bitmap)
+      callback(bitmap)
     }
   }
 }
