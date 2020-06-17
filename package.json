@@ -103,6 +103,9 @@
       }
     }
   },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/@LYL-Radio"
+  },
   "eslintConfig": {
     "extends": [
       "@react-native-community",
