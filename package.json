@@ -1,5 +1,5 @@
 {
-  "name": "react-native-audio",
+  "name": "@lyl-radio/react-native-audio",
   "version": "0.1.1",
   "description": "React Native audio library",
   "main": "lib/commonjs/index",
@@ -36,7 +36,7 @@
     "audio",
     "player"
   ],
-  "repository": "https://github.com/LYL-Radio/react-native-audio",
+  "repository": "git://github.com/LYL-Radio/react-native-audio.git",
   "author": "Maxime Epain <me@maxep.me> (https://github.com/maxep)",
   "license": "MIT",
   "bugs": {
@@ -104,7 +104,7 @@
     }
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com/@LYL-Radio"
+    "registry": "https://npm.pkg.github.com/"
   },
   "eslintConfig": {
     "extends": [
