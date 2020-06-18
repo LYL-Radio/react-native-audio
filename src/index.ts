@@ -11,7 +11,8 @@ import {
 import resolveAssetSource from 'react-native/Libraries/Image/resolveAssetSource';
 
 const { Audio } = NativeModules;
-const emitter = Platform.OS === 'ios' ? new NativeEventEmitter(Audio) : DeviceEventEmitter;
+const emitter =
+  Platform.OS === 'ios' ? new NativeEventEmitter(Audio) : DeviceEventEmitter;
 
 // MARK: - Helpers
 
@@ -68,7 +69,7 @@ export type Source = {
   artist?: string;
   albumArtist?: string;
   text?: string; // Android only
-  subtext?: string;  // Android only
+  subtext?: string; // Android only
 };
 
 /**
@@ -79,7 +80,10 @@ export const usePlaybackState = (): PlaybackState => {
   const [state, setState] = useState(PlaybackState.Unknown);
 
   useEffect(() => {
-    const subscription = emitter.addListener(PlayerEvent.PlaybackState, setState);
+    const subscription = emitter.addListener(
+      PlayerEvent.PlaybackState,
+      setState
+    );
     return () => subscription.remove();
   }, []);
 
