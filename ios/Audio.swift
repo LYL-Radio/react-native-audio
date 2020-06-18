@@ -32,7 +32,7 @@ class Audio: RCTEventEmitter {
     private var timeControlStatusObserver: NSKeyValueObservation?
     private var timeObserverToken: Any?
 
-    public override class func requiresMainQueueSetup() -> Bool { true }
+    public override class func requiresMainQueueSetup() -> Bool { false }
 
     public override var methodQueue: DispatchQueue { queue }
 
@@ -43,23 +43,47 @@ class Audio: RCTEventEmitter {
         ]
     }
 
+    override func constantsToExport() -> [AnyHashable : Any] {
+        return [
+            "PLAYER_STATE_EVENT": Audio.PlayerStateEvent,
+            "PLAYER_PROGRESS_EVENT": Audio.PlayerProgressEvent,
+
+            "PLAYER_STATE_PLAYING": Audio.PlayerStatePlaying,
+            "PLAYER_STATE_PAUSED": Audio.PlayerStatePaused,
+            "PLAYER_STATE_BUFFERING": Audio.PlayerStateBuffering,
+            "PLAYER_STATE_ENDED": Audio.PlayerStateEnded,
+            "PLAYER_STATE_UNKNOWN": Audio.PlayerStateUnknown,
+        ]
+    }
+
     public override init() {
         queue = DispatchQueue(label: "audio.serial.queue")
 
         super.init()
 
-        NotificationCenter.default.addObserver(self,
-                                               selector: #selector(playerDidPlayToEnd(_:)),
-                                               name: .AVPlayerItemDidPlayToEndTime,
-                                               object: nil)
-
-        NotificationCenter.default.addObserver(self,
-                                               selector: #selector(audioSessionInterruption(_:)),
-                                               name: AVAudioSession.interruptionNotification,
-                                               object: nil)
-
         // Get the shared MPRemoteCommandCenter
         let cmd = MPRemoteCommandCenter.shared()
+
+        cmd.pauseCommand.isEnabled = true
+        cmd.playCommand.isEnabled = true
+        cmd.changePlaybackPositionCommand.isEnabled = false
+        cmd.stopCommand.isEnabled = false
+        cmd.togglePlayPauseCommand.isEnabled = false
+        cmd.nextTrackCommand.isEnabled = false
+        cmd.previousTrackCommand.isEnabled = false
+        cmd.changeRepeatModeCommand.isEnabled = false
+        cmd.changeShuffleModeCommand.isEnabled = false
+        cmd.changePlaybackRateCommand.isEnabled = false
+        cmd.seekBackwardCommand.isEnabled = false
+        cmd.seekForwardCommand.isEnabled = false
+        cmd.skipBackwardCommand.isEnabled = false
+        cmd.skipForwardCommand.isEnabled = false
+        cmd.ratingCommand.isEnabled = false
+        cmd.likeCommand.isEnabled = false
+        cmd.dislikeCommand.isEnabled = false
+        cmd.bookmarkCommand.isEnabled = false
+        cmd.enableLanguageOptionCommand.isEnabled = false
+        cmd.disableLanguageOptionCommand.isEnabled = false
 
         // Add handler for Play Command
         cmd.playCommand.addTarget { [weak self] event in
@@ -75,7 +99,6 @@ class Audio: RCTEventEmitter {
             return .success
         }
 
-        cmd.changePlaybackPositionCommand.isEnabled = true
         cmd.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let player = self?.player, let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
             let time = CMTime(seconds: event.positionTime, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
@@ -83,16 +106,22 @@ class Audio: RCTEventEmitter {
             return .success
         }
 
-        let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playback)
-        try? session.setActive(true)
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(playerDidPlayToEnd(_:)),
+                                               name: .AVPlayerItemDidPlayToEndTime,
+                                               object: nil)
+
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(audioSessionInterruption(_:)),
+                                               name: AVAudioSession.interruptionNotification,
+                                               object: nil)
     }
 
     deinit {
         NotificationCenter.default.removeObserver(self)
     }
 
-    private func clear() {
+    private func reset() {
         player = nil
         statusObserver = nil
         timeControlStatusObserver = nil
@@ -100,6 +129,8 @@ class Audio: RCTEventEmitter {
         source = nil
 
         DispatchQueue.main.sync {
+            let session = AVAudioSession.sharedInstance()
+            try? session.setActive(false)
             UIApplication.shared.endReceivingRemoteControlEvents()
         }
     }
@@ -141,6 +172,9 @@ class Audio: RCTEventEmitter {
         }
 
         DispatchQueue.main.sync {
+            let session = AVAudioSession.sharedInstance()
+            try? session.setCategory(.playback, mode: .default)
+            try? session.setActive(true)
             UIApplication.shared.beginReceivingRemoteControlEvents()
         }
 
@@ -169,8 +203,8 @@ class Audio: RCTEventEmitter {
             }
         }
 
-        // Invoke callback every half seconds
-        let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        // Invoke callback every quarter seconds
+        let interval = CMTime(seconds: 0.25, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
 
         // Add time observer. Invoke closure on the queue.
         timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: queue) { [weak self] time in
@@ -184,12 +218,20 @@ class Audio: RCTEventEmitter {
     private func updateNowPlaying() {
         guard let source = source else { return }
 
+        // Get the shared MPRemoteCommandCenter
+        let cmd = MPRemoteCommandCenter.shared()
+
         let center = MPNowPlayingInfoCenter.default()
 
         // Define Now Playing Info
-        var info = [String: Any]()
-        info[MPMediaItemPropertyTitle] = source.metadata["title"]
+        var info: [String: Any] = [:]
 
+        info[MPNowPlayingInfoPropertyMediaType] = MPNowPlayingInfoMediaType.audio.rawValue
+        info[MPNowPlayingInfoPropertyAssetURL] = source.uri
+        info[MPMediaItemPropertyTitle] = source.metadata["title"]
+        info[MPMediaItemPropertyAlbumTitle] = source.metadata["album"]
+        info[MPMediaItemPropertyArtist] = source.metadata["artist"]
+        info[MPMediaItemPropertyAlbumArtist] = source.metadata["albumArtist"]
 
         if let artwork = source.artwork {
             info[MPMediaItemPropertyArtwork] = artwork
@@ -201,6 +243,12 @@ class Audio: RCTEventEmitter {
             info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = player.currentTime().seconds
             info[MPMediaItemPropertyPlaybackDuration] = player.currentItem?.asset.duration.seconds
             info[MPNowPlayingInfoPropertyPlaybackRate] = player.rate
+        }
+
+        if let duration = player?.currentItem?.duration {
+            let isLive = CMTIME_IS_INDEFINITE(duration)
+            info[MPNowPlayingInfoPropertyIsLiveStream] = isLive
+            cmd.changePlaybackPositionCommand.isEnabled = !isLive
         }
 
         // Set the metadata
@@ -216,20 +264,24 @@ class Audio: RCTEventEmitter {
 
     @objc(resume:rejecter:)
     public func resume(resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
-        player?.play()
+        if let player = player, player.rate == 0 {
+            player.play()
+        }
         resolve(nil)
     }
 
     @objc(pause:rejecter:)
     public func pause(resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
-        player?.pause()
+        if let player = player, player.rate == 1 {
+            player.pause()
+        }
         resolve(nil)
     }
 
     @objc(stop:rejecter:)
     public func stop(resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
         player?.pause()
-        clear()
+        reset()
         resolve(nil)
     }
 }

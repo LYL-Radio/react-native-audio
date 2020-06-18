@@ -11,9 +11,16 @@ import com.facebook.react.bridge.*
 class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
   companion object {
+    // Events
+    const val PLAYER_STATE_EVENT = "player-state"
+    const val PLAYER_PROGRESS_EVENT = "player-progress"
 
-    // Metadata Keys
-    const val METADATA_URI_KEY = "uri"
+    // Player States
+    const val PLAYER_STATE_PLAYING = "playing"
+    const val PLAYER_STATE_PAUSED = "paused"
+    const val PLAYER_STATE_BUFFERING = "buffering"
+    const val PLAYER_STATE_ENDED = "ended"
+    const val PLAYER_STATE_UNKNOWN = "unknown"
   }
 
   private val context = reactContext
@@ -21,12 +28,27 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
   override fun getName(): String { return "Audio" }
 
+  override fun hasConstants(): Boolean { return true }
+
+  override fun getConstants(): MutableMap<String, Any> {
+    return mutableMapOf(
+      "PLAYER_STATE_EVENT" to PLAYER_STATE_EVENT,
+      "PLAYER_PROGRESS_EVENT" to PLAYER_PROGRESS_EVENT,
+
+      "PLAYER_STATE_PLAYING" to PLAYER_STATE_PLAYING,
+      "PLAYER_STATE_PAUSED" to PLAYER_STATE_PAUSED,
+      "PLAYER_STATE_BUFFERING" to PLAYER_STATE_BUFFERING,
+      "PLAYER_STATE_ENDED" to PLAYER_STATE_ENDED,
+      "PLAYER_STATE_UNKNOWN" to PLAYER_STATE_UNKNOWN
+    )
+  }
+
   // Module CMD
 
   @ReactMethod
   fun play(data: ReadableMap, promise: Promise) {
     try {
-      val string = data.getString(METADATA_URI_KEY) ?: throw IllegalArgumentException("uri field required")
+      val string = data.getString("uri") ?: throw IllegalArgumentException("uri field required")
       val uri = Uri.parse(string)
 
       if (uri == service?.audio?.uri) return resume(promise)
@@ -73,7 +95,7 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     }
   }
 
-  // Audio Service
+  // Audio Service Binding
 
   private val connection = object : ServiceConnection {
 

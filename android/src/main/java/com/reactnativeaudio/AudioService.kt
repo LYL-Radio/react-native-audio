@@ -44,17 +44,6 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
     const val PLAYBACK_CHANNEL_ID = "react-native-audio-playback-channel"
     const val PLAYBACK_NOTIFICATION_ID = 1
     const val MEDIA_SESSION_TAG = "react-native-audio-media-session"
-
-    // Events
-    const val PLAYER_STATE_EVENT = "player-state"
-    const val PLAYER_PROGRESS_EVENT = "player-progress"
-
-    // Player States
-    const val PLAYER_STATE_PLAYING = "playing"
-    const val PLAYER_STATE_PAUSED = "paused"
-    const val PLAYER_STATE_BUFFERING = "buffering"
-    const val PLAYER_STATE_ENDED = "ended"
-    const val PLAYER_STATE_UNKNOWN = "unknown"
   }
 
   var audio: Audio? = null
@@ -138,11 +127,15 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
   fun prepareNotification(context: Context, metadata: HashMap<String, Any>) {
     audio?.metadata = metadata
 
-    val title = metadata["title"] as? String ?: " No title"
-    val artwork = metadata["artwork"] as? String
-    val description = metadata["description"] as? String
+    val title= metadata["title"] as? String ?: " No title"
+    val artwork= metadata["artwork"] as? String
+    val album= metadata["album"] as? String
+    val artist= metadata["artist"] as? String
+    val albumArtist= metadata["albumArtist"] as? String
+    val text= metadata["text"] as? String
+    val subtext= metadata["subtext"] as? String
 
-    // Show lock screen controls and let apps like Google assistant manager playback.
+    // Show lock screen controls and let apps like Google assistant manage playback.
     val session = MediaSessionCompat(context, MEDIA_SESSION_TAG).apply { isActive = true }
     notification.mediaSessionCompat = session
 
@@ -159,16 +152,16 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
           return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
         }
 
-        override fun getCurrentContentText(player: Player): String? {
-          return description
-        }
-
         override fun getCurrentContentTitle(player: Player): String {
           return title
         }
 
+        override fun getCurrentContentText(player: Player): String? {
+          return text ?: artist
+        }
+
         override fun getCurrentSubText(player: Player): CharSequence? {
-          return null
+          return subtext ?: album
         }
 
         override fun getCurrentLargeIcon(player: Player, callback: PlayerNotificationManager.BitmapCallback): Bitmap? {
@@ -225,18 +218,24 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
           return MediaDescriptionCompat.Builder().apply {
             setMediaUri(audio?.uri)
             setTitle(title)
-            setDescription(description)
+            setSubtitle(text ?: artist)
+            setDescription(subtext ?: album)
+            setIconBitmap(audio?.bitmap)
+
+            val extras = Bundle()
+            extras.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
+            extras.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
+            extras.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, albumArtist)
 
             artwork?.let {
               val uri = Uri.parse(it)
               setIconUri(uri)
-
-              val extras = Bundle()
               extras.putString(MediaMetadataCompat.METADATA_KEY_ART_URI, it)
               extras.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, it)
               extras.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, it)
-              setExtras(extras)
             }
+
+            setExtras(extras)
 
           }.build()
         }
@@ -287,23 +286,23 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
       progressHandler?.postDelayed(this, 200)
 
       val position = player.currentPosition
-      sendEvent(PLAYER_PROGRESS_EVENT, position.toDouble())
+      sendEvent(AudioModule.PLAYER_PROGRESS_EVENT, position.toDouble())
     }
   }
 
   override fun onPlayerStateChanged(playWhenReady: Boolean, playbackState: Int) {
     when (playbackState) {
-      Player.STATE_BUFFERING -> sendEvent(PLAYER_STATE_EVENT, PLAYER_STATE_BUFFERING)
-      Player.STATE_ENDED -> sendEvent(PLAYER_STATE_EVENT, PLAYER_STATE_ENDED)
+      Player.STATE_BUFFERING -> sendEvent(AudioModule.PLAYER_STATE_EVENT, AudioModule.PLAYER_STATE_BUFFERING)
+      Player.STATE_ENDED -> sendEvent(AudioModule.PLAYER_STATE_EVENT, AudioModule.PLAYER_STATE_ENDED)
     }
   }
 
   override fun onIsPlayingChanged(isPlaying: Boolean) {
-    sendEvent(PLAYER_STATE_EVENT, if (isPlaying) PLAYER_STATE_PLAYING else PLAYER_STATE_PAUSED)
+    sendEvent(AudioModule.PLAYER_STATE_EVENT, if (isPlaying) AudioModule.PLAYER_STATE_PLAYING else AudioModule.PLAYER_STATE_PAUSED)
   }
 
   override fun onPlayerError(error: ExoPlaybackException) {
-    sendEvent(PLAYER_STATE_EVENT, PLAYER_STATE_UNKNOWN)
+    sendEvent(AudioModule.PLAYER_STATE_EVENT, AudioModule.PLAYER_STATE_UNKNOWN)
     audio = null
   }
 
