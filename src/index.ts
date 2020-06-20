@@ -57,7 +57,7 @@ export enum PlaybackState {
 }
 
 export enum PlayerEvent {
-  PlaybackState = 'player-state',
+  PlaybackState = 'player-state', // eslint-disable-line no-shadow
   Progress = 'player-progress',
 }
 
