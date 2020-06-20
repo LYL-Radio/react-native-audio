@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { StyleSheet, View, Image } from 'react-native';
-import Audio, { Source, usePlaybackState } from 'react-native-audio';
-import { PlayPauseButton, StopButton } from './components';
+import { StyleSheet, View } from 'react-native';
+import Audio, { usePlaybackState, Source } from '@lyl-radio/react-native-audio';
+import { PlayPauseButton, StopButton, Artwork } from './components';
 
 const media: Source = {
   uri: 'http://d19bhbirxx14bg.cloudfront.net/chopin-28-4-pfaul.mp3',
@@ -20,15 +20,14 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <Image style={styles.artwork} source={{ uri: media.artwork }} />
+      <Artwork style={styles.artwork} artwork={media.artwork} />
 
       <View style={styles.controls}>
         <PlayPauseButton
           style={styles.control}
           onPlay={() => Audio.play(media)}
-          onPause={Audio.pause}
+          onPause={() => Audio.pause()}
         />
-
         <StopButton style={styles.control} onStop={Audio.stop} />
       </View>
     </View>
@@ -45,8 +44,8 @@ const styles = StyleSheet.create({
   artwork: {
     width: 150,
     height: 150,
-    borderRadius: 8,
     margin: 16,
+    borderRadius: 8,
   },
 
   controls: {

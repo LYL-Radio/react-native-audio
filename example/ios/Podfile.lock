@@ -233,7 +233,7 @@ PODS:
     - React-cxxreact (= 0.62.0)
     - React-jsi (= 0.62.0)
   - React-jsinspector (0.62.0)
-  - react-native-audio (0.1.1):
+  - react-native-audio (0.2.0):
     - React
   - react-native-spinkit (1.4.1):
     - React
@@ -439,7 +439,7 @@ SPEC CHECKSUMS:
   React-jsi: bc8166d6833cdcb0848c80710b26ce63fad2c099
   React-jsiexecutor: 8bf0b2707f05865113415088c398a7f98c0cf546
   React-jsinspector: 8e5913c4c6c54f0d3f9c9fc630c465a89cded65d
-  react-native-audio: e3be115d7b2c4cfc83a868a0396c90c74f380e15
+  react-native-audio: 4ebab06570901eb27db97601b6879febba395319
   react-native-spinkit: da294fd828216ad211fe36a5c14c1e09f09e62db
   React-RCTActionSheet: 674afbc8b9c76e0a83520e0a51da29a70802c03f
   React-RCTAnimation: f5f24330d09ee677fb49e0782f8321868f4df431
