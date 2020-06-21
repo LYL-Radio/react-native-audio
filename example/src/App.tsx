@@ -27,7 +27,10 @@ export default function App() {
     <View style={styles.container}>
       <Artwork style={styles.artwork} artwork={media.artwork} />
 
-      <ProgressBar onSeek={(position) => Audio.seekTo(position)} />
+      <ProgressBar
+        style={styles.progress}
+        onSeek={(position) => Audio.seekTo(position)}
+      />
 
       <View style={styles.controls}>
         <PlayPauseButton
@@ -59,6 +62,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  progress: {
+    width: '100%',
+    paddingHorizontal: 32,
   },
 
   control: {

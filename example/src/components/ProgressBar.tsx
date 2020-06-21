@@ -22,35 +22,39 @@ export function ProgressBar(props: Props): React.ReactElement {
   const elapsed = format(progress);
   const remaining = format(duration - progress);
 
-  const onValueChange = useCallback((value: number) => {
-    if (isSliding && props.onSeek) {
-      props.onSeek(value)
-    }
-  }, [isSliding, props])
+  const onValueChange = useCallback(
+    (value: number) => {
+      if (isSliding && props.onSeek) {
+        props.onSeek(value);
+      }
+    },
+    [isSliding, props]
+  );
 
-  const onSlidingStart = useCallback((value: number) => {
-    setIsSliding(true)
-    if (props.onSeek) {
-      props.onSeek(value)
-    }
-  }, [props])
+  const onSlidingStart = useCallback(
+    (value: number) => {
+      setIsSliding(true);
+      if (props.onSeek) {
+        props.onSeek(value);
+      }
+    },
+    [props]
+  );
 
-  const onSlidingComplete = useCallback((value: number) => {
-    setIsSliding(false)
-    if (props.onSeek) {
-      props.onSeek(value)
-    }
-  }, [props])
+  const onSlidingComplete = useCallback(
+    (value: number) => {
+      setIsSliding(false);
+      if (props.onSeek) {
+        props.onSeek(value);
+      }
+    },
+    [props]
+  );
 
-  const value = isSliding ? undefined : progress
+  const value = isSliding ? undefined : progress;
 
   return (
-    <View {...props} style={styles.container}>
-      <View style={{ flexDirection: 'row' }}>
-        <Text style={styles.text}>{elapsed}</Text>
-        <View style={{ flex: 1 }} />
-        <Text style={[styles.text, { width: 40 }]}>{'-' + remaining}</Text>
-      </View>
+    <View {...props}>
       <Slider
         maximumValue={duration}
         onSlidingStart={onSlidingStart}
@@ -60,30 +64,24 @@ export function ProgressBar(props: Props): React.ReactElement {
         minimumTrackTintColor="black"
         maximumTrackTintColor="lightgray"
       />
+      <View style={styles.timeline}>
+        <Text style={styles.text}>{elapsed}</Text>
+        <View style={styles.spacer} />
+        <Text style={styles.text}>{'-' + remaining}</Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  slider: {
-    marginTop: -12,
+  timeline: {
+    flexDirection: 'row',
   },
-  container: {
-    width: '100%',
-    paddingLeft: 16,
-    paddingRight: 16,
-    paddingTop: 16,
+
+  spacer: {
+    flex: 1,
   },
-  track: {
-    height: 2,
-    borderRadius: 1,
-  },
-  thumb: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: 'black',
-  },
+
   text: {
     color: 'black',
     fontSize: 12,
