@@ -1,7 +1,12 @@
 import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
-import Audio, { usePlaybackState, Source } from '@lyl-radio/react-native-audio';
-import { PlayPauseButton, StopButton, Artwork } from './components';
+import Audio, { usePlaybackState, Source } from 'react-native-audio';
+import {
+  PlayPauseButton,
+  StopButton,
+  Artwork,
+  ProgressBar,
+} from './components';
 
 const media: Source = {
   uri: 'http://d19bhbirxx14bg.cloudfront.net/chopin-28-4-pfaul.mp3',
@@ -21,6 +26,8 @@ export default function App() {
   return (
     <View style={styles.container}>
       <Artwork style={styles.artwork} artwork={media.artwork} />
+
+      <ProgressBar onSeek={(position) => Audio.seekTo(position)} />
 
       <View style={styles.controls}>
         <PlayPauseButton

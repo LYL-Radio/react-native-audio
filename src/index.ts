@@ -6,6 +6,7 @@ import {
   NativeEventEmitter,
   DeviceEventEmitter,
   TaskProvider,
+  EmitterSubscription,
 } from 'react-native';
 // @ts-ignore
 import resolveAssetSource from 'react-native/Libraries/Image/resolveAssetSource';
@@ -42,6 +43,7 @@ const play = (source: Source): Promise<void> => {
   return Audio.play(source);
 };
 
+const seekTo = (position: number): Promise<void> => Audio.seekTo(position);
 const pause = (): Promise<void> => Audio.pause();
 const resume = (): Promise<void> => Audio.resume();
 const stop = (): Promise<void> => Audio.stop();
@@ -59,6 +61,7 @@ export enum PlaybackState {
 export enum PlayerEvent {
   PlaybackState = 'player-state', // eslint-disable-line no-shadow
   Progress = 'player-progress',
+  Duration = 'player-duration',
 }
 
 export type Source = {
@@ -73,6 +76,25 @@ export type Source = {
 };
 
 /**
+ * Adds a listener to be invoked when player events are emitted.
+ * An optional calling context may be provided. The data arguments
+ * emitted will be passed to the listener function.
+ *
+ * @param event - The player event to listen to
+ * @param listener - Function to invoke when the specified event is
+ *   emitted
+ * @param context - Optional context object to use when invoking the
+ *   listener
+ */
+const addListener = (
+  event: PlayerEvent,
+  listener: (...args: any[]) => any,
+  context?: any
+): EmitterSubscription => {
+  return emitter.addListener(event, listener, context);
+};
+
+/**
  * @description
  *   Get playback state
  */
@@ -80,14 +102,26 @@ export const usePlaybackState = (): PlaybackState => {
   const [state, setState] = useState(PlaybackState.Unknown);
 
   useEffect(() => {
-    const subscription = emitter.addListener(
-      PlayerEvent.PlaybackState,
-      setState
-    );
+    const subscription = addListener(PlayerEvent.PlaybackState, setState);
     return () => subscription.remove();
   }, []);
 
   return state;
+};
+
+/**
+ * @description
+ *   Get player duration
+ */
+export const usePlayerDuraton = (): number => {
+  const [duration, setDuration] = useState(-1);
+
+  useEffect(() => {
+    const subscription = addListener(PlayerEvent.Duration, setDuration);
+    return () => subscription.remove();
+  }, []);
+
+  return duration;
 };
 
 /**
@@ -98,7 +132,7 @@ export const usePlayerProgress = (): number => {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    const subscription = emitter.addListener(PlayerEvent.Progress, setProgress);
+    const subscription = addListener(PlayerEvent.Progress, setProgress);
     return () => subscription.remove();
   }, []);
 
@@ -107,7 +141,9 @@ export const usePlayerProgress = (): number => {
 
 export default {
   registerAudioService,
+  addListener,
   play,
+  seekTo,
   pause,
   resume,
   stop,

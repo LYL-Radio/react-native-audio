@@ -126,6 +126,7 @@ def kotlin_version = getExtOrDefault('kotlinVersion')
 dependencies {
   // noinspection GradleDynamicVersion
   api 'com.facebook.react:react-native:+'
+  //noinspection GradleDependency
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
   implementation 'com.google.android.exoplayer:exoplayer:2.11.5'
   implementation 'com.google.android.exoplayer:extension-mediasession:2.11.5'

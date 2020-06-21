@@ -14,6 +14,7 @@ class Audio: RCTEventEmitter {
     // Events
     static let PlayerStateEvent = "player-state"
     static let PlayerProgressEvent = "player-progress"
+    static let PlayerDurationEvent = "player-duration"
 
     // Player States
     static let PlayerStatePlaying = "playing"
@@ -34,19 +35,28 @@ class Audio: RCTEventEmitter {
 
     public override class func requiresMainQueueSetup() -> Bool { false }
 
+    /// The queue that will be used to call all exported methods.
     public override var methodQueue: DispatchQueue { queue }
 
+    /// The list of events emitted ny the module
     public override func supportedEvents() -> [String] {
         return [
             Audio.PlayerStateEvent,
-            Audio.PlayerProgressEvent
+            Audio.PlayerProgressEvent,
+            Audio.PlayerDurationEvent
         ]
     }
 
+    /// Injects constants into JS. These constants are made accessible via NativeModules.ModuleName.X. It is only called once
+    /// for the lifetime of the bridge, so it is not suitable for returning dynamic values, but may be used for long-lived
+    /// values such as session keys, that are regenerated only as part of a reload of the entire React application.
+    ///
+    /// - Returns: The list of constans to export.
     override func constantsToExport() -> [AnyHashable : Any] {
         return [
             "PLAYER_STATE_EVENT": Audio.PlayerStateEvent,
             "PLAYER_PROGRESS_EVENT": Audio.PlayerProgressEvent,
+            "PLAYER_DURATION_EVENT": Audio.PlayerDurationEvent,
 
             "PLAYER_STATE_PLAYING": Audio.PlayerStatePlaying,
             "PLAYER_STATE_PAUSED": Audio.PlayerStatePaused,
@@ -87,14 +97,14 @@ class Audio: RCTEventEmitter {
 
         // Add handler for Play Command
         cmd.playCommand.addTarget { [weak self] event in
-            guard let player = self?.player, player.rate == 0 else { return .commandFailed }
+            guard let player = self?.player else { return .commandFailed }
             player.play()
             return .success
         }
 
         // Add handler for Pause Command
         cmd.pauseCommand.addTarget { [weak self] event in
-            guard let player = self?.player, player.rate == 1 else { return .commandFailed }
+            guard let player = self?.player else { return .commandFailed }
             player.pause()
             return .success
         }
@@ -115,24 +125,14 @@ class Audio: RCTEventEmitter {
                                                selector: #selector(audioSessionInterruption(_:)),
                                                name: AVAudioSession.interruptionNotification,
                                                object: nil)
+
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .default)
+        try? session.setActive(true)
     }
 
     deinit {
         NotificationCenter.default.removeObserver(self)
-    }
-
-    private func reset() {
-        player = nil
-        statusObserver = nil
-        timeControlStatusObserver = nil
-        timeObserverToken = nil
-        source = nil
-
-        DispatchQueue.main.sync {
-            let session = AVAudioSession.sharedInstance()
-            try? session.setActive(false)
-            UIApplication.shared.endReceivingRemoteControlEvents()
-        }
     }
 
     @objc private func playerDidPlayToEnd(_ notification: Notification) {
@@ -140,20 +140,23 @@ class Audio: RCTEventEmitter {
     }
 
     @objc private func audioSessionInterruption(_ notification: Notification) {
-        player?.pause()
-    }
-
-    private func downloadArtwork(completion: @escaping () -> Void) {
         guard
-            let artwork = source?.metadata["artwork"] as? String,
-            let url = URL(string: artwork)
+            let userInfo = notification.userInfo,
+            let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+            let type = AVAudioSession.InterruptionType(rawValue: typeValue)
         else { return }
 
-        DispatchQueue.global(qos: .background).async { [weak self] in
-            guard let data = try? Data(contentsOf: url), let image = UIImage(data: data) else { return }
-            let artwork = MPMediaItemArtwork(boundsSize: image.size) { size in image }
-            self?.source?.artwork = artwork
-            completion()
+        switch type {
+
+        case .began:
+            player?.pause()
+
+        case .ended:
+            guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else { return }
+            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+            if options.contains(.shouldResume) { player?.play() }
+        @unknown default:
+            break
         }
     }
 
@@ -171,26 +174,27 @@ class Audio: RCTEventEmitter {
             return resume(resolve: resolve, reject: reject)
         }
 
-        DispatchQueue.main.sync {
-            let session = AVAudioSession.sharedInstance()
-            try? session.setCategory(.playback, mode: .default)
-            try? session.setActive(true)
-            UIApplication.shared.beginReceivingRemoteControlEvents()
-        }
-
-        self.source = Source(uri: uri, metadata: data, artwork: nil)
+        source = Source(uri: uri, metadata: data, artwork: nil)
 
         let player = AVPlayer(url: uri)
 
-        statusObserver = player.observe(\.status) { [weak self] player, _ in
+        DispatchQueue.main.sync {
+            UIApplication.shared.beginReceivingRemoteControlEvents()
+        }
+
+        statusObserver = player.observe(\.status) { [weak self] player, change in
+            self?.setNowPlayingPlaybackInfo()
+
             switch player.status {
-            case .readyToPlay: self?.updateNowPlaying(); resolve(nil)
+            case .readyToPlay: resolve(nil)
             case .failed: reject("audio_play", "Audio failed to load", player.error)
             default: break
             }
         }
 
         timeControlStatusObserver = player.observe(\.timeControlStatus) { [weak self] player, change in
+            self?.setNowPlayingPlaybackInfo()
+
             switch player.timeControlStatus {
             case .paused:
                 self?.sendEvent(withName: Audio.PlayerStateEvent, body: Audio.PlayerStatePaused)
@@ -204,7 +208,7 @@ class Audio: RCTEventEmitter {
         }
 
         // Invoke callback every quarter seconds
-        let interval = CMTime(seconds: 0.25, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        let interval = CMTime(seconds: 0.25, preferredTimescale: CMTimeScale(USEC_PER_SEC))
 
         // Add time observer. Invoke closure on the queue.
         timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: queue) { [weak self] time in
@@ -213,13 +217,58 @@ class Audio: RCTEventEmitter {
 
         self.player = player
         player.play()
+
+        setNowPlayingMetadata()
     }
 
-    private func updateNowPlaying() {
-        guard let source = source else { return }
+    @objc(update:resolver:rejecter:)
+    public func update(metadata: [String: Any], resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+        source?.metadata = metadata
+        setNowPlayingMetadata()
+        resolve(nil)
+    }
 
-        // Get the shared MPRemoteCommandCenter
-        let cmd = MPRemoteCommandCenter.shared()
+    @objc(resume:rejecter:)
+    public func resume(resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+        player?.play()
+        resolve(nil)
+    }
+
+    @objc(pause:rejecter:)
+    public func pause(resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+        player?.pause()
+        resolve(nil)
+    }
+
+    @objc(seekTo:resolver:rejecter:)
+    public func seekTo(position: Double, resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+        let time = CMTime(seconds: position, preferredTimescale: CMTimeScale(USEC_PER_SEC))
+        player?.seek(to: time)
+        resolve(nil)
+    }
+
+    @objc(stop:rejecter:)
+    public func stop(resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+        player?.pause()
+
+        player = nil
+        statusObserver = nil
+        timeControlStatusObserver = nil
+        timeObserverToken = nil
+        source = nil
+
+        DispatchQueue.main.sync {
+            UIApplication.shared.endReceivingRemoteControlEvents()
+        }
+
+        resolve(nil)
+    }
+}
+
+private extension Audio {
+
+    func setNowPlayingMetadata() {
+        guard let source = source else { return }
 
         let center = MPNowPlayingInfoCenter.default()
 
@@ -236,52 +285,54 @@ class Audio: RCTEventEmitter {
         if let artwork = source.artwork {
             info[MPMediaItemPropertyArtwork] = artwork
         } else {
-            downloadArtwork(completion: updateNowPlaying)
-        }
-
-        if let player = player {
-            info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = player.currentTime().seconds
-            info[MPMediaItemPropertyPlaybackDuration] = player.currentItem?.asset.duration.seconds
-            info[MPNowPlayingInfoPropertyPlaybackRate] = player.rate
-        }
-
-        if let duration = player?.currentItem?.duration {
-            let isLive = CMTIME_IS_INDEFINITE(duration)
-            info[MPNowPlayingInfoPropertyIsLiveStream] = isLive
-            cmd.changePlaybackPositionCommand.isEnabled = !isLive
+            downloadArtwork(completion: setNowPlayingMetadata)
         }
 
         // Set the metadata
         center.nowPlayingInfo = info
     }
 
-    @objc(update:resolver:rejecter:)
-    public func update(metadata: [String: Any], resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
-        source?.metadata = metadata
-        updateNowPlaying()
-        resolve(nil)
-    }
+    func setNowPlayingPlaybackInfo() {
 
-    @objc(resume:rejecter:)
-    public func resume(resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
-        if let player = player, player.rate == 0 {
-            player.play()
+        // Get the shared MPRemoteCommandCenter
+        let cmd = MPRemoteCommandCenter.shared()
+
+        let center = MPNowPlayingInfoCenter.default()
+
+        // Define Now Playing Info
+        var info: [String: Any] = center.nowPlayingInfo ?? [:]
+
+        info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = player?.currentTime().seconds
+        info[MPMediaItemPropertyPlaybackDuration] = player?.currentItem?.asset.duration.seconds
+        info[MPNowPlayingInfoPropertyPlaybackRate] = player?.rate
+        info[MPNowPlayingInfoPropertyDefaultPlaybackRate] = 1.0
+
+        let duration = player?.currentItem?.duration ?? CMTime.invalid
+        let isLive = duration.isIndefinite
+        info[MPNowPlayingInfoPropertyIsLiveStream] = isLive
+        cmd.changePlaybackPositionCommand.isEnabled = !isLive
+
+        if let duration = player?.currentItem?.asset.duration, duration.isValid {
+            sendEvent(withName: Audio.PlayerDurationEvent, body: duration.seconds)
+        } else {
+            sendEvent(withName: Audio.PlayerDurationEvent, body: -1)
         }
-        resolve(nil)
+
+        // Set the metadata
+        center.nowPlayingInfo = info
     }
 
-    @objc(pause:rejecter:)
-    public func pause(resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
-        if let player = player, player.rate == 1 {
-            player.pause()
+    func downloadArtwork(completion: @escaping () -> Void) {
+        guard
+            let artwork = source?.metadata["artwork"] as? String,
+            let url = URL(string: artwork)
+        else { return }
+
+        DispatchQueue.global(qos: .background).async { [weak self] in
+            guard let data = try? Data(contentsOf: url), let image = UIImage(data: data) else { return }
+            let artwork = MPMediaItemArtwork(boundsSize: image.size) { size in image }
+            self?.source?.artwork = artwork
+            completion()
         }
-        resolve(nil)
-    }
-
-    @objc(stop:rejecter:)
-    public func stop(resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
-        player?.pause()
-        reset()
-        resolve(nil)
     }
 }

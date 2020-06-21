@@ -14,6 +14,7 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     // Events
     const val PLAYER_STATE_EVENT = "player-state"
     const val PLAYER_PROGRESS_EVENT = "player-progress"
+    const val PLAYER_DURATION_EVENT = "player-duration"
 
     // Player States
     const val PLAYER_STATE_PLAYING = "playing"
@@ -34,6 +35,7 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     return mutableMapOf(
       "PLAYER_STATE_EVENT" to PLAYER_STATE_EVENT,
       "PLAYER_PROGRESS_EVENT" to PLAYER_PROGRESS_EVENT,
+      "PLAYER_DURATION_EVENT" to PLAYER_DURATION_EVENT,
 
       "PLAYER_STATE_PLAYING" to PLAYER_STATE_PLAYING,
       "PLAYER_STATE_PAUSED" to PLAYER_STATE_PAUSED,
@@ -66,6 +68,14 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
   fun update(data: ReadableMap, promise: Promise) {
     context.runOnUiQueueThread {
       service?.prepareNotification(context, data.toHashMap())
+      promise.resolve(null)
+    }
+  }
+
+  @ReactMethod
+  fun seekTo(position: Double, promise: Promise) {
+    context.runOnUiQueueThread {
+      service?.seekTo(position)
       promise.resolve(null)
     }
   }

@@ -27,6 +27,7 @@ import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory
 import com.google.android.exoplayer2.util.Util
 import java.net.URL
+import kotlin.math.max
 
 class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispatcher {
 
@@ -261,13 +262,9 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
   }
 
   @MainThread
-  fun getDuration(): Long {
-    return player.duration
-  }
-
-  @MainThread
-  fun getCurrentPosition(): Long {
-    return player.currentPosition
+  fun seekTo(seconds: Double) {
+    val position = seconds.toLong() * 1000
+    return player.seekTo(position)
   }
 
   @MainThread
@@ -285,7 +282,7 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
     override fun run() {
       progressHandler?.postDelayed(this, 200)
 
-      val position = player.currentPosition
+      val position = max(0, player.currentPosition / 1000)
       sendEvent(AudioModule.PLAYER_PROGRESS_EVENT, position.toDouble())
     }
   }
@@ -304,6 +301,11 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
   override fun onPlayerError(error: ExoPlaybackException) {
     sendEvent(AudioModule.PLAYER_STATE_EVENT, AudioModule.PLAYER_STATE_UNKNOWN)
     audio = null
+  }
+
+  override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+    val duration = if (player.duration < 0) { -1 } else { player.duration / 1000 }
+    sendEvent(AudioModule.PLAYER_DURATION_EVENT, duration.toDouble())
   }
 
   /**

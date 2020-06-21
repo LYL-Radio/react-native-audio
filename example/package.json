@@ -9,8 +9,9 @@
     "start": "react-native start"
   },
   "dependencies": {
+    "@react-native-community/slider": "^3.0.0",
     "@types/react-native-vector-icons": "^6.4.5",
-    "@lyl-radio/react-native-audio": "file:..",
+    "moment": "^2.27.0",
     "react": "16.11.0",
     "react-native": "0.62.0",
     "react-native-spinkit": "^1.5.0",

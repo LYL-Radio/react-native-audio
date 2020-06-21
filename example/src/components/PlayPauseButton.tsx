@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { ViewProps, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { PlaybackState, usePlaybackState } from '@lyl-radio/react-native-audio';
+import { PlaybackState, usePlaybackState } from 'react-native-audio';
 
 type Props = {
   onPlay: () => void;
