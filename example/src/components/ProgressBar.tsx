@@ -2,7 +2,10 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ViewProps } from 'react-native';
 import Slider from '@react-native-community/slider';
 import moment from 'moment';
-import { usePlayerProgress, usePlayerDuration } from '@lyl-radio/react-native-audio';
+import {
+  usePlayerProgress,
+  usePlayerDuration,
+} from '@lyl-radio/react-native-audio';
 
 type Props = {
   onSeek?: (position: number) => void;
