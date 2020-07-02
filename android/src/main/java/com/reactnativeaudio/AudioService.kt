@@ -264,6 +264,7 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
 
   @MainThread
   fun stop() {
+    player.playWhenReady = false
     player.stop(true)
     audio = null
     stopProgressListener()
@@ -296,17 +297,6 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
     }
   }
 
-  override fun onPlayerStateChanged(playWhenReady: Boolean, playbackState: Int) {
-    when (playbackState) {
-      Player.STATE_BUFFERING -> sendEvent(AudioModule.PLAYER_STATE_EVENT, AudioModule.PLAYER_STATE_BUFFERING)
-      Player.STATE_ENDED -> sendEvent(AudioModule.PLAYER_STATE_EVENT, AudioModule.PLAYER_STATE_ENDED)
-    }
-  }
-
-  override fun onIsPlayingChanged(isPlaying: Boolean) {
-    sendEvent(AudioModule.PLAYER_STATE_EVENT, if (isPlaying) AudioModule.PLAYER_STATE_PLAYING else AudioModule.PLAYER_STATE_PAUSED)
-  }
-
   /**
    * Called when an error occurs. The playback state will transition to [.STATE_IDLE]
    * immediately after this method is called. The player instance can still be used, and [ ][.release] must still be called on the player should it no longer be required.
@@ -333,6 +323,22 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
   override fun onTimelineChanged(timeline: Timeline, reason: Int) {
     val duration = if (player.duration < 0) { -1 } else { player.duration / 1000 }
     sendEvent(AudioModule.PLAYER_DURATION_EVENT, duration.toDouble())
+  }
+
+  /**
+   * Called when the value returned from either [.getPlayWhenReady] or [ ][.getPlaybackState] changes.
+   *
+   * @param playWhenReady Whether playback will proceed when ready.
+   * @param playbackState The new [playback state][Player.State].
+   */
+  override fun onPlayerStateChanged(playWhenReady: Boolean, playbackState: Int) {
+    when (playbackState) {
+      Player.STATE_BUFFERING -> sendEvent(AudioModule.PLAYER_STATE_EVENT, AudioModule.PLAYER_STATE_BUFFERING)
+      Player.STATE_ENDED -> sendEvent(AudioModule.PLAYER_STATE_EVENT, AudioModule.PLAYER_STATE_ENDED)
+      else -> {
+        sendEvent(AudioModule.PLAYER_STATE_EVENT, if (playWhenReady) AudioModule.PLAYER_STATE_PLAYING else AudioModule.PLAYER_STATE_PAUSED)
+      }
+    }
   }
 
   /**
@@ -414,6 +420,7 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
       callback(bitmap)
     }
   }
+
 }
 
 
