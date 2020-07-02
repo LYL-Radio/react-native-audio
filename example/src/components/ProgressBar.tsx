@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ViewProps } from 'react-native';
 import Slider from '@react-native-community/slider';
 import moment from 'moment';
-import { usePlayerProgress, usePlayerDuraton } from 'react-native-audio';
+import { usePlayerProgress, usePlayerDuration } from '@lyl-radio/react-native-audio';
 
 type Props = {
   onSeek?: (position: number) => void;
@@ -15,7 +15,7 @@ const format = (seconds: number): string => {
 };
 
 export function ProgressBar(props: Props): React.ReactElement {
-  const duration = usePlayerDuraton();
+  const duration = usePlayerDuration();
   const progress = usePlayerProgress();
   const [isSliding, setIsSliding] = useState(false);
 

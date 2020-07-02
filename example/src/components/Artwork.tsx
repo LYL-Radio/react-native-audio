@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Image, ViewProps, StyleSheet } from 'react-native';
 import Spinner from 'react-native-spinkit';
-import { PlaybackState, usePlaybackState } from 'react-native-audio';
+import { PlaybackState, usePlaybackState } from '@lyl-radio/react-native-audio';
 
 type Props = {
   artwork?: string;

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
-import Audio, { usePlaybackState, Source } from 'react-native-audio';
+import Audio, { usePlaybackState, Source } from '@lyl-radio/react-native-audio';
 import {
   PlayPauseButton,
   StopButton,
