@@ -113,7 +113,7 @@ export const usePlaybackState = (): PlaybackState => {
  * @description
  *   Get player duration
  */
-export const usePlayerDuraton = (): number => {
+export const usePlayerDuration = (): number => {
   const [duration, setDuration] = useState(-1);
 
   useEffect(() => {
