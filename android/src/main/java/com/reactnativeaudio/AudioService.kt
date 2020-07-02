@@ -69,11 +69,20 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
       ?.emit(eventName, params)
   }
 
+  /**
+   * Called from [.onStartCommand] to create a [HeadlessJsTaskConfig] for this intent.
+   *
+   * @param intent the [Intent] received in [.onStartCommand].
+   * @return a [HeadlessJsTaskConfig] to be used with [.startTask], or `null` to
+   * ignore this command.
+   */
   override fun getTaskConfig(intent: Intent?): HeadlessJsTaskConfig? {
     return HeadlessJsTaskConfig("react-native-audio", Arguments.createMap(), 0, true)
   }
 
-  @MainThread
+  /**
+   * Called by the system when the service is first created.  Do not call this method directly.
+   */
   override fun onCreate() {
     super.onCreate()
 
@@ -298,11 +307,29 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
     sendEvent(AudioModule.PLAYER_STATE_EVENT, if (isPlaying) AudioModule.PLAYER_STATE_PLAYING else AudioModule.PLAYER_STATE_PAUSED)
   }
 
+  /**
+   * Called when an error occurs. The playback state will transition to [.STATE_IDLE]
+   * immediately after this method is called. The player instance can still be used, and [ ][.release] must still be called on the player should it no longer be required.
+   *
+   * @param error The error.
+   */
   override fun onPlayerError(error: ExoPlaybackException) {
     sendEvent(AudioModule.PLAYER_STATE_EVENT, AudioModule.PLAYER_STATE_UNKNOWN)
     audio = null
   }
 
+  /**
+   * Called when the timeline has been refreshed.
+   *
+   *
+   * Note that if the timeline has changed then a position discontinuity may also have
+   * occurred. For example, the current period index may have changed as a result of periods being
+   * added or removed from the timeline. This will *not* be reported via a separate call to
+   * [.onPositionDiscontinuity].
+   *
+   * @param timeline The latest timeline. Never null, but may be empty.
+   * @param reason The [Player.TimelineChangeReason] responsible for this timeline change.
+   */
   override fun onTimelineChanged(timeline: Timeline, reason: Int) {
     val duration = if (player.duration < 0) { -1 } else { player.duration / 1000 }
     sendEvent(AudioModule.PLAYER_DURATION_EVENT, duration.toDouble())
