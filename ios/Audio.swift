@@ -160,6 +160,20 @@ class Audio: RCTEventEmitter {
         }
     }
 
+    private func reset() {
+        player?.pause()
+
+        if let observer = timeObserverToken {
+            player?.removeTimeObserver(observer)
+        }
+
+        statusObserver = nil
+        timeControlStatusObserver = nil
+        timeObserverToken = nil
+        source = nil
+        player = nil
+    }
+
     // Module CMD
 
     @objc(play:resolver:rejecter:)
@@ -173,6 +187,9 @@ class Audio: RCTEventEmitter {
         if source?.uri == uri {
             return resume(resolve: resolve, reject: reject)
         }
+
+        // reset current player
+        reset()
 
         source = Source(uri: uri, metadata: data, artwork: nil)
 
@@ -249,18 +266,11 @@ class Audio: RCTEventEmitter {
 
     @objc(stop:rejecter:)
     public func stop(resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
-        player?.pause()
-
-        player = nil
-        statusObserver = nil
-        timeControlStatusObserver = nil
-        timeObserverToken = nil
-        source = nil
-
+        reset()
+        
         DispatchQueue.main.sync {
             UIApplication.shared.endReceivingRemoteControlEvents()
         }
-
         resolve(nil)
     }
 }
