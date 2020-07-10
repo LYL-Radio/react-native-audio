@@ -161,7 +161,6 @@ class Audio: RCTEventEmitter {
     }
 
     private func reset() {
-        player?.pause()
 
         if let observer = timeObserverToken {
             player?.removeTimeObserver(observer)
@@ -266,6 +265,7 @@ class Audio: RCTEventEmitter {
 
     @objc(stop:rejecter:)
     public func stop(resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+        player?.pause()
         reset()
         
         DispatchQueue.main.sync {
