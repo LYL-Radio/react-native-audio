@@ -6,16 +6,6 @@ name: Publish Node.js Package
 on: push
 
 jobs:
-  build:
-    name: Building and testing Node.js Package.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v1
-        with:
-          node-version: 12
-      - run: npm ci
-      - run: npm test
   
   publish-npm:
     name: Publishing Node.js Package to NPM package registry.
@@ -25,8 +15,7 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           node-version: 12
-      - run: npm install
-      - run: npm test
+      - run: yarn install
       - uses: JS-DevTools/npm-publish@v1
         with:
           registry: https://registry.npmjs.org/
@@ -41,8 +30,7 @@ jobs:
         - uses: actions/setup-node@v1
           with:
             node-version: 12
-        - run: npm install
-        - run: npm test
+        - run: yarn install
         - uses: JS-DevTools/npm-publish@v1
           with:
             registry: https://npm.pkg.github.com/
