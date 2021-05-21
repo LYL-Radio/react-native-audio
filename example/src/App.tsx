@@ -1,27 +1,23 @@
-import * as React from 'react';
-import { StyleSheet, View } from 'react-native';
-import Audio, { usePlaybackState, Source } from '@lyl-radio/react-native-audio';
-import {
-  PlayPauseButton,
-  StopButton,
-  Artwork,
-  ProgressBar,
-} from './components';
+import Audio, { Source, usePlaybackState } from '@lyl-radio/react-native-audio'
+import * as React from 'react'
+import { StyleSheet, View } from 'react-native'
+
+import { Artwork, PlayPauseButton, ProgressBar, StopButton } from './components'
 
 const media: Source = {
-  uri: 'http://d19bhbirxx14bg.cloudfront.net/chopin-28-4-pfaul.mp3',
+  uri: 'https://www.mfiles.co.uk/mp3-downloads/prelude04.mp3',
   title: 'Prelude in E minor Op.28 No.4',
   artwork:
     'https://upload.wikimedia.org/wikipedia/commons/e/e8/Frederic_Chopin_photo.jpeg',
   artist: 'Frédéric Chopin',
-};
+}
 
-export default function App() {
-  const state = usePlaybackState();
+export default function App(): React.ReactElement {
+  const state = usePlaybackState()
 
   React.useEffect(() => {
-    console.log(state);
-  }, [state]);
+    console.log(state)
+  }, [state])
 
   return (
     <View style={styles.container}>
@@ -41,7 +37,7 @@ export default function App() {
         <StopButton style={styles.control} onStop={Audio.stop} />
       </View>
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -72,4 +68,4 @@ const styles = StyleSheet.create({
   control: {
     padding: 8,
   },
-});
+})

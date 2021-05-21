@@ -1,60 +1,60 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ViewProps } from 'react-native';
-import Slider from '@react-native-community/slider';
-import moment from 'moment';
 import {
-  usePlayerProgress,
   usePlayerDuration,
-} from '@lyl-radio/react-native-audio';
+  usePlayerProgress,
+} from '@lyl-radio/react-native-audio'
+import Slider from '@react-native-community/slider'
+import moment from 'moment'
+import React, { useCallback, useState } from 'react'
+import { StyleSheet, Text, View, ViewProps } from 'react-native'
 
 type Props = {
-  onSeek?: (position: number) => void;
-} & ViewProps;
+  onSeek?: (position: number) => void
+} & ViewProps
 
 const format = (seconds: number): string => {
-  const duration = moment.duration({ seconds: seconds });
-  const ms = duration.asMilliseconds();
-  return moment.utc(ms).format('mm:ss');
-};
+  const duration = moment.duration({ seconds: seconds })
+  const ms = duration.asMilliseconds()
+  return moment.utc(ms).format('mm:ss')
+}
 
 export function ProgressBar(props: Props): React.ReactElement {
-  const duration = usePlayerDuration();
-  const progress = usePlayerProgress();
-  const [isSliding, setIsSliding] = useState(false);
+  const duration = usePlayerDuration()
+  const progress = usePlayerProgress()
+  const [isSliding, setIsSliding] = useState(false)
 
-  const elapsed = format(progress);
-  const remaining = format(duration - progress);
+  const elapsed = format(progress)
+  const remaining = format(duration - progress)
 
   const onValueChange = useCallback(
     (value: number) => {
       if (isSliding && props.onSeek) {
-        props.onSeek(value);
+        props.onSeek(value)
       }
     },
     [isSliding, props]
-  );
+  )
 
   const onSlidingStart = useCallback(
     (value: number) => {
-      setIsSliding(true);
+      setIsSliding(true)
       if (props.onSeek) {
-        props.onSeek(value);
+        props.onSeek(value)
       }
     },
     [props]
-  );
+  )
 
   const onSlidingComplete = useCallback(
     (value: number) => {
-      setIsSliding(false);
+      setIsSliding(false)
       if (props.onSeek) {
-        props.onSeek(value);
+        props.onSeek(value)
       }
     },
     [props]
-  );
+  )
 
-  const value = isSliding ? undefined : progress;
+  const value = isSliding ? undefined : progress
 
   return (
     <View {...props}>
@@ -64,8 +64,8 @@ export function ProgressBar(props: Props): React.ReactElement {
         onSlidingComplete={onSlidingComplete}
         onValueChange={onValueChange}
         value={value}
-        minimumTrackTintColor="black"
-        maximumTrackTintColor="lightgray"
+        minimumTrackTintColor='black'
+        maximumTrackTintColor='lightgray'
       />
       <View style={styles.timeline}>
         <Text style={styles.text}>{elapsed}</Text>
@@ -73,7 +73,7 @@ export function ProgressBar(props: Props): React.ReactElement {
         <Text style={styles.text}>{'-' + remaining}</Text>
       </View>
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -90,4 +90,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
   },
-});
+})

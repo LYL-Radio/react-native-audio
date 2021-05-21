@@ -1,14 +1,14 @@
-import React from 'react';
-import { View, Image, ViewProps, StyleSheet } from 'react-native';
-import Spinner from 'react-native-spinkit';
-import { PlaybackState, usePlaybackState } from '@lyl-radio/react-native-audio';
+import { PlaybackState, usePlaybackState } from '@lyl-radio/react-native-audio'
+import React from 'react'
+import { Image, StyleSheet, View, ViewProps } from 'react-native'
+import Spinner from 'react-native-spinkit'
 
 type Props = {
-  artwork?: string;
-} & ViewProps;
+  artwork?: string
+} & ViewProps
 
 export function Artwork(props: Props): React.ReactElement {
-  const state = usePlaybackState();
+  const state = usePlaybackState()
 
   return (
     <View {...props}>
@@ -16,13 +16,13 @@ export function Artwork(props: Props): React.ReactElement {
       <View style={styles.spinner}>
         <Spinner
           isVisible={state === PlaybackState.Buffering}
-          type="Wave"
+          type='Wave'
           size={40}
-          color="white"
+          color='white'
         />
       </View>
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -36,4 +36,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-});
+})

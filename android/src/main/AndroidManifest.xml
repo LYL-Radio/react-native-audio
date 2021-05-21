@@ -1,13 +1,10 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-  xmlns:tools="http://schemas.android.com/tools"
-  package="com.reactnativeaudio">
+<manifest 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    package="lyl.reactnativeaudio">
+    
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
-  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-
-  <application>
-    <service
-      android:name=".AudioService"
-      android:enabled="true" />
-  </application>
-
+    <application>
+        <service android:name=".AudioService" android:enabled="true" />
+    </application>
 </manifest>

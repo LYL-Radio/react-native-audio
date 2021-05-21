@@ -267,7 +267,7 @@ class Audio: RCTEventEmitter {
     public func stop(resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
         player?.pause()
         reset()
-        
+
         DispatchQueue.main.sync {
             UIApplication.shared.endReceivingRemoteControlEvents()
         }
@@ -286,11 +286,14 @@ private extension Audio {
         var info: [String: Any] = [:]
 
         info[MPNowPlayingInfoPropertyMediaType] = MPNowPlayingInfoMediaType.audio.rawValue
-        info[MPNowPlayingInfoPropertyAssetURL] = source.uri
         info[MPMediaItemPropertyTitle] = source.metadata["title"]
         info[MPMediaItemPropertyAlbumTitle] = source.metadata["album"]
         info[MPMediaItemPropertyArtist] = source.metadata["artist"]
         info[MPMediaItemPropertyAlbumArtist] = source.metadata["albumArtist"]
+
+        if #available(iOS 10.3, *) {
+            info[MPNowPlayingInfoPropertyAssetURL] = source.uri
+        }
 
         if let artwork = source.artwork {
             info[MPMediaItemPropertyArtwork] = artwork
@@ -346,3 +349,4 @@ private extension Audio {
         }
     }
 }
+

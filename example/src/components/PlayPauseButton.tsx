@@ -1,43 +1,43 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { ViewProps, TouchableOpacity } from 'react-native';
-import Icon from 'react-native-vector-icons/FontAwesome';
-import { PlaybackState, usePlaybackState } from '@lyl-radio/react-native-audio';
+import { PlaybackState, usePlaybackState } from '@lyl-radio/react-native-audio'
+import React, { useCallback, useEffect, useState } from 'react'
+import { TouchableOpacity, ViewProps } from 'react-native'
+import Icon from 'react-native-vector-icons/FontAwesome'
 
 type Props = {
-  onPlay: () => void;
-  onPause: () => void;
-} & ViewProps;
+  onPlay: () => void
+  onPause: () => void
+} & ViewProps
 
 export function PlayPauseButton(props: Props): React.ReactElement {
-  const [play, setPlay] = useState(false);
+  const [play, setPlay] = useState(false)
 
-  const playbackState = usePlaybackState();
+  const playbackState = usePlaybackState()
 
   useEffect(() => {
     switch (playbackState) {
       case PlaybackState.Playing:
-        setPlay(true);
-        break;
+        setPlay(true)
+        break
 
       case PlaybackState.Paused:
-        setPlay(false);
-        break;
+        setPlay(false)
+        break
     }
-  }, [playbackState]);
+  }, [playbackState])
 
   const toggle = useCallback(() => {
     if (play) {
-      setPlay(false);
-      props.onPause();
+      setPlay(false)
+      props.onPause()
     } else {
-      setPlay(true);
-      props.onPlay();
+      setPlay(true)
+      props.onPlay()
     }
-  }, [play, props]);
+  }, [play, props])
 
   return (
     <TouchableOpacity {...props} onPress={toggle}>
-      <Icon name={play ? 'pause' : 'play'} size={40} color="black" />
+      <Icon name={play ? 'pause' : 'play'} size={40} color='black' />
     </TouchableOpacity>
-  );
+  )
 }
