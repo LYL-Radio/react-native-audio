@@ -252,7 +252,7 @@ PODS:
     - React-jsi (= 0.64.0)
     - React-perflogger (= 0.64.0)
   - React-jsinspector (0.64.0)
-  - react-native-audio (1.0.0):
+  - react-native-audio (0.6.0):
     - React
   - react-native-slider (3.0.3):
     - React
@@ -491,7 +491,7 @@ SPEC CHECKSUMS:
   React-jsi: 74341196d9547cbcbcfa4b3bbbf03af56431d5a1
   React-jsiexecutor: 06a9c77b56902ae7ffcdd7a4905f664adc5d237b
   React-jsinspector: 0ae35a37b20d5e031eb020a69cc5afdbd6406301
-  react-native-audio: a8735e21d492339224b665b55047d46162c87c9f
+  react-native-audio: e423d569eed7cc8e604fcff68304cdf1cd9f5525
   react-native-slider: e99fc201cefe81270fc9d81714a7a0f5e566b168
   react-native-spinkit: da294fd828216ad211fe36a5c14c1e09f09e62db
   React-perflogger: 9c547d8f06b9bf00cb447f2b75e8d7f19b7e02af

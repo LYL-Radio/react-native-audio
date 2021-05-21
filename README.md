@@ -6,12 +6,12 @@ React Native audio library
 
 Install from the command line:
 ```
-$ npm install @lyl-radio/react-native-audio@0.5.1
+$ npm install @lyl-radio/react-native-audio@0.6.0
 ```
 
 Install via package.json:
 ```
-"@lyl-radio/react-native-audio": "0.5.1"
+"@lyl-radio/react-native-audio": "0.6.0"
 ```
 
 ## Usage
