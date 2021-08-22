@@ -22,14 +22,14 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.google.android.exoplayer2.*
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
 import com.google.android.exoplayer2.ext.mediasession.TimelineQueueNavigator
-import com.google.android.exoplayer2.source.ProgressiveMediaSource
+import com.google.android.exoplayer2.source.DefaultMediaSourceFactory
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
-import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory
+import com.google.android.exoplayer2.upstream.DefaultHttpDataSource
 import com.google.android.exoplayer2.util.Util
 import java.net.URL
 import kotlin.math.max
 
-class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispatcher {
+class AudioService: HeadlessJsTaskService(), Player.Listener {
 
   data class Audio(val uri: Uri,
                    var metadata: HashMap<String, Any>,
@@ -37,8 +37,7 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
                    var bitmap: Bitmap? = null)
 
   inner class AudioServiceBinder: Binder() {
-    val service
-      get() = this@AudioService
+    val service get() = this@AudioService
   }
 
   companion object {
@@ -125,10 +124,13 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
   fun preparePlayer(context: Context, audio: Audio) {
     this.audio = audio
 
-    val factory = DefaultHttpDataSourceFactory(Util.getUserAgent(context, "react-native-audio"))
-    val source = ProgressiveMediaSource.Factory(factory).createMediaSource(audio.uri)
+    val factory = DefaultHttpDataSource.Factory().setUserAgent(Util.getUserAgent(context, "react-native-audio"))
+    val item = MediaItem.fromUri(audio.uri)
+    val source = DefaultMediaSourceFactory(factory).createMediaSource(item)
 
-    player.prepare(source)
+    player.setMediaSource(source)
+    player.prepare()
+
     playWhenReady(audio.playWhenReady)
     prepareNotification(context, audio.metadata)
   }
@@ -149,13 +151,24 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
     val session = MediaSessionCompat(context, MEDIA_SESSION_TAG).apply { isActive = true }
     notification.mediaSessionCompat = session
 
-    // Setup notification and media session
-    notification.manager = PlayerNotificationManager(
-      context,
-      PLAYBACK_CHANNEL_ID,
-      PLAYBACK_NOTIFICATION_ID,
+    val player = object : ForwardingPlayer(player) {
 
-      object : PlayerNotificationManager.MediaDescriptionAdapter {
+      override fun setPlayWhenReady(playWhenReady: Boolean) {
+        this@AudioService.playWhenReady(playWhenReady)
+      }
+
+      override fun stop() {
+        this@AudioService.stop()
+      }
+    }
+
+    // Setup notification and media session
+    notification.manager = PlayerNotificationManager.Builder(
+      context,
+      PLAYBACK_NOTIFICATION_ID,
+      PLAYBACK_CHANNEL_ID
+    )
+      .setMediaDescriptionAdapter(object : PlayerNotificationManager.MediaDescriptionAdapter {
 
         override fun createCurrentContentIntent(player: Player): PendingIntent? {
           val intent = Intent(context, AudioService::class.java)
@@ -185,40 +198,33 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
 
           return null
         }
-      },
+      })
+      .setNotificationListener(object : PlayerNotificationManager.NotificationListener {
 
-      object : PlayerNotificationManager.NotificationListener {
-        override fun onNotificationStarted(notificationId: Int, notification: Notification) {
-          startForeground(notificationId, notification)
-        }
-
-        override fun onNotificationCancelled(notificationId: Int) {
+        override fun onNotificationCancelled(notificationId: Int, dismissedByUser: Boolean) {
           stop()
         }
 
         override fun onNotificationPosted(notificationId: Int, notification: Notification, ongoing: Boolean) {
           if (ongoing)
-            // Make sure the service will not get destroyed while playing media.
+          // Make sure the service will not get destroyed while playing media.
             startForeground(notificationId, notification)
           else
-            // Make notification cancellable.
+          // Make notification cancellable.
             stopForeground(false)
         }
+      }).build().apply {
+        // Omit skip previous and next actions.
+        setUseNextAction(false)
+        setUsePreviousAction(false)
+
+        // Add stop action.
+        setUseStopAction(true)
+
+        setMediaSessionToken(session.sessionToken)
+
+        setPlayer(player)
       }
-
-    ).apply {
-      // Omit skip previous and next actions.
-      setUseNavigationActions(false)
-
-      // Add stop action.
-      setUseStopAction(true)
-
-      setControlDispatcher(this@AudioService)
-
-      setMediaSessionToken(session.sessionToken)
-
-      setPlayer(player)
-    }
 
     notification.mediaSessionConnector = MediaSessionConnector(session).apply {
 
@@ -303,7 +309,7 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
    *
    * @param error The error.
    */
-  override fun onPlayerError(error: ExoPlaybackException) {
+  override fun onPlayerError(error: PlaybackException) {
     sendEvent(AudioModule.PLAYER_STATE_EVENT, AudioModule.PLAYER_STATE_UNKNOWN)
     audio = null
   }
@@ -339,68 +345,6 @@ class AudioService: HeadlessJsTaskService(), Player.EventListener, ControlDispat
         sendEvent(AudioModule.PLAYER_STATE_EVENT, if (playWhenReady) AudioModule.PLAYER_STATE_PLAYING else AudioModule.PLAYER_STATE_PAUSED)
       }
     }
-  }
-
-  /**
-   * Dispatches a [Player.seekTo] operation.
-   *
-   * @param player The [Player] to which the operation should be dispatched.
-   * @param windowIndex The index of the window.
-   * @param positionMs The seek position in the specified window, or [C.TIME_UNSET] to seek to
-   * the window's default position.
-   * @return True if the operation was dispatched. False if suppressed.
-   */
-  override fun dispatchSeekTo(player: Player, windowIndex: Int, positionMs: Long): Boolean {
-    player.seekTo(windowIndex, positionMs)
-    return true
-  }
-
-  /**
-   * Dispatches a [Player.setShuffleModeEnabled] operation.
-   *
-   * @param player The [Player] to which the operation should be dispatched.
-   * @param shuffleModeEnabled Whether shuffling is enabled.
-   * @return True if the operation was dispatched. False if suppressed.
-   */
-  override fun dispatchSetShuffleModeEnabled(player: Player, shuffleModeEnabled: Boolean): Boolean {
-    player.shuffleModeEnabled = shuffleModeEnabled
-    return true
-  }
-
-  /**
-   * Dispatches a [Player.setPlayWhenReady] operation.
-   *
-   * @param player The [Player] to which the operation should be dispatched.
-   * @param playWhenReady Whether playback should proceed when ready.
-   * @return True if the operation was dispatched. False if suppressed.
-   */
-  override fun dispatchSetPlayWhenReady(player: Player, playWhenReady: Boolean): Boolean {
-    playWhenReady(playWhenReady)
-    return true
-  }
-
-  /**
-   * Dispatches a [Player.setRepeatMode] operation.
-   *
-   * @param player The [Player] to which the operation should be dispatched.
-   * @param repeatMode The repeat mode.
-   * @return True if the operation was dispatched. False if suppressed.
-   */
-  override fun dispatchSetRepeatMode(player: Player, repeatMode: Int): Boolean {
-    player.repeatMode = repeatMode
-    return true
-  }
-
-  /**
-   * Dispatches a [Player.stop] operation.
-   *
-   * @param player The [Player] to which the operation should be dispatched.
-   * @param reset Whether the player should be reset.
-   * @return True if the operation was dispatched. False if suppressed.
-   */
-  override fun dispatchStop(player: Player, reset: Boolean): Boolean {
-    stop()
-    return true
   }
 
   class BitmapDownloaderTask(
