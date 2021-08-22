@@ -26,11 +26,11 @@
     "!xcuserdata"
   ],
   "scripts": {
+    "postinstall": "yarn --cwd example install",
     "prepare": "yarn compile",
     "compile": "rm -rf lib && tsc -p .",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "test": "jest",
-    "prestart": "yarn --cwd example install",
     "start": "yarn --cwd example start",
     "ios": "yarn --cwd example ios",
     "android": "yarn --cwd example android"
