@@ -147,10 +147,6 @@ class AudioService: HeadlessJsTaskService(), Player.Listener {
     val text= metadata["text"] as? String
     val subtext= metadata["subtext"] as? String
 
-    // Show lock screen controls and let apps like Google assistant manage playback.
-    val session = MediaSessionCompat(context, MEDIA_SESSION_TAG).apply { isActive = true }
-    notification.mediaSessionCompat = session
-
     val player = object : ForwardingPlayer(player) {
 
       override fun setPlayWhenReady(playWhenReady: Boolean) {
@@ -162,58 +158,64 @@ class AudioService: HeadlessJsTaskService(), Player.Listener {
       }
     }
 
+    val adapter = object : PlayerNotificationManager.MediaDescriptionAdapter {
+
+      override fun createCurrentContentIntent(player: Player): PendingIntent? {
+        val intent = Intent(context, AudioService::class.java)
+        return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+      }
+
+      override fun getCurrentContentTitle(player: Player): String {
+        return title
+      }
+
+      override fun getCurrentContentText(player: Player): String? {
+        return text ?: artist
+      }
+
+      override fun getCurrentSubText(player: Player): CharSequence? {
+        return subtext ?: album
+      }
+
+      override fun getCurrentLargeIcon(player: Player, callback: PlayerNotificationManager.BitmapCallback): Bitmap? {
+        audio?.bitmap?.let { return it }
+        val url = artwork ?: return null
+
+        notification.bitmapTask = BitmapDownloaderTask(url) { bitmap ->
+          callback.onBitmap(bitmap)
+          audio?.bitmap = bitmap
+        }.execute()
+
+        return null
+      }
+    }
+
+    val listener = object : PlayerNotificationManager.NotificationListener {
+
+      override fun onNotificationCancelled(notificationId: Int, dismissedByUser: Boolean) {
+        stop()
+      }
+
+      override fun onNotificationPosted(notificationId: Int, notification: Notification, ongoing: Boolean) {
+        if (ongoing)
+        // Make sure the service will not get destroyed while playing media.
+          startForeground(notificationId, notification)
+        else
+        // Make notification cancellable.
+          stopForeground(false)
+      }
+    }
+
+    val builder = PlayerNotificationManager.Builder(context, PLAYBACK_NOTIFICATION_ID, PLAYBACK_CHANNEL_ID)
+      .setMediaDescriptionAdapter(adapter)
+      .setNotificationListener(listener)
+
+    // Show lock screen controls and let apps like Google assistant manage playback.
+    val session = MediaSessionCompat(context, MEDIA_SESSION_TAG).apply { isActive = true }
+    notification.mediaSessionCompat = session
+
     // Setup notification and media session
-    notification.manager = PlayerNotificationManager.Builder(
-      context,
-      PLAYBACK_NOTIFICATION_ID,
-      PLAYBACK_CHANNEL_ID
-    )
-      .setMediaDescriptionAdapter(object : PlayerNotificationManager.MediaDescriptionAdapter {
-
-        override fun createCurrentContentIntent(player: Player): PendingIntent? {
-          val intent = Intent(context, AudioService::class.java)
-          return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
-        }
-
-        override fun getCurrentContentTitle(player: Player): String {
-          return title
-        }
-
-        override fun getCurrentContentText(player: Player): String? {
-          return text ?: artist
-        }
-
-        override fun getCurrentSubText(player: Player): CharSequence? {
-          return subtext ?: album
-        }
-
-        override fun getCurrentLargeIcon(player: Player, callback: PlayerNotificationManager.BitmapCallback): Bitmap? {
-          audio?.bitmap?.let { return it }
-          val url = artwork ?: return null
-
-          notification.bitmapTask = BitmapDownloaderTask(url) { bitmap ->
-            callback.onBitmap(bitmap)
-            audio?.bitmap = bitmap
-          }.execute()
-
-          return null
-        }
-      })
-      .setNotificationListener(object : PlayerNotificationManager.NotificationListener {
-
-        override fun onNotificationCancelled(notificationId: Int, dismissedByUser: Boolean) {
-          stop()
-        }
-
-        override fun onNotificationPosted(notificationId: Int, notification: Notification, ongoing: Boolean) {
-          if (ongoing)
-          // Make sure the service will not get destroyed while playing media.
-            startForeground(notificationId, notification)
-          else
-          // Make notification cancellable.
-            stopForeground(false)
-        }
-      }).build().apply {
+    notification.manager = builder.build().apply {
         // Omit skip previous and next actions.
         setUseNextAction(false)
         setUsePreviousAction(false)
@@ -228,7 +230,7 @@ class AudioService: HeadlessJsTaskService(), Player.Listener {
 
     notification.mediaSessionConnector = MediaSessionConnector(session).apply {
 
-      setQueueNavigator(object : TimelineQueueNavigator(session) {
+      val navigator = object : TimelineQueueNavigator(session) {
 
         override fun getMediaDescription(player: Player, windowIndex: Int): MediaDescriptionCompat {
           return MediaDescriptionCompat.Builder().apply {
@@ -255,8 +257,9 @@ class AudioService: HeadlessJsTaskService(), Player.Listener {
 
           }.build()
         }
-      })
+      }
 
+      setQueueNavigator(navigator)
       setPlayer(player)
     }
   }
