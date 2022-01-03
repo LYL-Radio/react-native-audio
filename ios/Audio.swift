@@ -320,10 +320,10 @@ private extension Audio {
         info[MPMediaItemPropertyPlaybackDuration] = player?.currentItem?.duration.seconds
         info[MPNowPlayingInfoPropertyPlaybackRate] = player?.rate
 
-        if let duration = player?.currentItem?.duration, duration.isValid {
-            info[MPNowPlayingInfoPropertyIsLiveStream] = duration.isIndefinite
-            cmd.changePlaybackPositionCommand.isEnabled = !duration.isIndefinite
+        let duration = player?.currentItem?.duration ?? .invalid
+        info[MPNowPlayingInfoPropertyIsLiveStream] = duration.isIndefinite
 
+        if duration.isNumeric {
             sendEvent(withName: Audio.PlayerDurationEvent, body: duration.seconds)
         } else {
             sendEvent(withName: Audio.PlayerDurationEvent, body: -1)
@@ -331,6 +331,7 @@ private extension Audio {
 
         // Set the metadata
         center.nowPlayingInfo = info
+        cmd.changePlaybackPositionCommand.isEnabled = !duration.isIndefinite
     }
 
     func downloadArtwork(completion: @escaping () -> Void) {
