@@ -38,7 +38,7 @@ class Audio: RCTEventEmitter {
     /// The queue that will be used to call all exported methods.
     public override var methodQueue: DispatchQueue { queue }
 
-    /// The list of events emitted ny the module
+    /// The list of events emitted by the module
     public override func supportedEvents() -> [String] {
         return [
             Audio.PlayerStateEvent,
@@ -286,6 +286,7 @@ private extension Audio {
         var info: [String: Any] = [:]
 
         info[MPNowPlayingInfoPropertyMediaType] = MPNowPlayingInfoMediaType.audio.rawValue
+        info[MPNowPlayingInfoPropertyDefaultPlaybackRate] = 1.0
         info[MPMediaItemPropertyTitle] = source.metadata["title"]
         info[MPMediaItemPropertyAlbumTitle] = source.metadata["album"]
         info[MPMediaItemPropertyArtist] = source.metadata["artist"]
@@ -316,16 +317,13 @@ private extension Audio {
         var info: [String: Any] = center.nowPlayingInfo ?? [:]
 
         info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = player?.currentTime().seconds
-        info[MPMediaItemPropertyPlaybackDuration] = player?.currentItem?.asset.duration.seconds
+        info[MPMediaItemPropertyPlaybackDuration] = player?.currentItem?.duration.seconds
         info[MPNowPlayingInfoPropertyPlaybackRate] = player?.rate
-        info[MPNowPlayingInfoPropertyDefaultPlaybackRate] = 1.0
 
-        let duration = player?.currentItem?.duration ?? CMTime.invalid
-        let isLive = duration.isIndefinite
-        info[MPNowPlayingInfoPropertyIsLiveStream] = isLive
-        cmd.changePlaybackPositionCommand.isEnabled = !isLive
+        if let duration = player?.currentItem?.duration, duration.isValid {
+            info[MPNowPlayingInfoPropertyIsLiveStream] = duration.isIndefinite
+            cmd.changePlaybackPositionCommand.isEnabled = !duration.isIndefinite
 
-        if let duration = player?.currentItem?.asset.duration, duration.isValid {
             sendEvent(withName: Audio.PlayerDurationEvent, body: duration.seconds)
         } else {
             sendEvent(withName: Audio.PlayerDurationEvent, body: -1)
