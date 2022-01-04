@@ -24,6 +24,21 @@ import Audio from "@lyl-radio/react-native-audio"
 Audio.play({ uri: 'https://your/content.mp3' })
 ```
 
+The [`Source`](src/index.ts#L67) includes metadata to setup the [Now Playing Info](https://developer.apple.com/documentation/mediaplayer/mpnowplayinginfocenter) on iOS' Control Center and the [Media Controls](https://developer.android.com/guide/topics/media/media-controls) on Android.
+
+```js
+type Source = {
+  uri: string
+  title: string
+  artwork?: string
+  album?: string
+  artist?: string
+  albumArtist?: string
+  text?: string // Android only
+  subtext?: string // Android only
+}
+```
+
 > See [example](example) for more details.
 
 ### Hooks
