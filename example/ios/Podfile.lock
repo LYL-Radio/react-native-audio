@@ -282,7 +282,7 @@ PODS:
   - React-jsinspector (0.72.4)
   - React-logger (0.72.4):
     - glog
-  - react-native-audio (0.6.6):
+  - react-native-audio (0.7.0):
     - React
   - react-native-slider (4.4.3):
     - React-Core
@@ -556,7 +556,7 @@ SPEC CHECKSUMS:
   React-jsiexecutor: bc8a9ad812a2c88b3a41c08b5f4b3ed32d6d4766
   React-jsinspector: aaed4cf551c4a1c98092436518c2d267b13a673f
   React-logger: da1ebe05ae06eb6db4b162202faeafac4b435e77
-  react-native-audio: 6aee07482394d8526cdaecf08467269b678009e8
+  react-native-audio: c17460b93f6effc290d722a9fdabc8ba28ea508b
   react-native-slider: 1cdd6ba29675df21f30544253bf7351d3c2d68c4
   react-native-spinkit: da294fd828216ad211fe36a5c14c1e09f09e62db
   React-NativeModulesApple: 759309419da76ef4c9f331968b840022ee2aa5b1
