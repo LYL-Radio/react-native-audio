@@ -10,10 +10,11 @@ jobs:
     name: Publishing Node.js Package to NPM package registry.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
-      - uses: actions/setup-node@v1
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
           node-version: 16
+          registry-url: https://registry.npmjs.org/
 
       - name: Check package version
         uses: technote-space/package-version-check-action@v1
@@ -22,21 +23,19 @@ jobs:
 
       - run: yarn install
       - run: yarn lint
-
-      - uses: JS-DevTools/npm-publish@v1
-        with:
-          registry: https://registry.npmjs.org/
-          token: ${{ secrets.NPM_TOKEN }}
-          access: public
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         
   publish-gpr:
       name: Publishing Node.js Package to GitHub package registry.
       runs-on: ubuntu-latest
       steps:
-        - uses: actions/checkout@v1
-        - uses: actions/setup-node@v1
+        - uses: actions/checkout@v3
+        - uses: actions/setup-node@v3
           with:
             node-version: 16
+            registry-url: https://npm.pkg.github.com/
 
         - name: Check package version
           uses: technote-space/package-version-check-action@v1
@@ -45,8 +44,6 @@ jobs:
 
         - run: yarn install
         - run: yarn lint
-
-        - uses: JS-DevTools/npm-publish@v1
-          with:
-            registry: https://npm.pkg.github.com/
-            token: ${{ secrets.GITHUB_TOKEN }}
+        - run: npm publish
+          env:
+            NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
