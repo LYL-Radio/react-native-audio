@@ -30,7 +30,6 @@
     "prepare": "yarn compile",
     "compile": "rm -rf lib && tsc -p .",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-    "test": "jest",
     "example": "yarn --cwd example"
   },
   "devDependencies": {
@@ -38,10 +37,8 @@
     "@babel/preset-env": "^7.20.5",
     "@babel/runtime": "^7.13.10",
     "@react-native-community/eslint-config": "^3.2.0",
-    "@types/jest": "^26.0.22",
     "@types/react": "~17.0.21",
     "@types/react-native": "0.70.0",
-    "babel-jest": "^26.6.3",
     "eslint": "^8.4.1",
     "eslint-plugin-ft-flow": "^3.0.0",
     "eslint-plugin-simple-import-sort": "^7.0.0",
@@ -55,16 +52,5 @@
   "peerDependencies": {
     "react": "*",
     "react-native": "*"
-  },
-  "jest": {
-    "preset": "react-native",
-    "moduleFileExtensions": [
-      "ts",
-      "tsx",
-      "js",
-      "jsx",
-      "json",
-      "node"
-    ]
   }
 }
