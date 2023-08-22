@@ -59,7 +59,7 @@ export enum PlaybackState {
 }
 
 export enum PlayerEvent {
-  PlaybackState = 'player-state', // eslint-disable-line no-shadow
+  PlaybackState = 'player-state', // eslint-disable-line @typescript-eslint/no-shadow
   Progress = 'player-progress',
   Duration = 'player-duration',
 }
