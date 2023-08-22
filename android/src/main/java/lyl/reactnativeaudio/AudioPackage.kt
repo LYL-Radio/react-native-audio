@@ -11,10 +11,10 @@ import com.facebook.react.bridge.JavaScriptModule
 
 class AudioPackage : ReactPackage {
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
-        return Arrays.asList<NativeModule>(AudioModule(reactContext))
+        return listOf<NativeModule>(AudioModule(reactContext))
     }
 
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {
-        return emptyList<ViewManager<*, *>>()
+        return emptyList()
     }
 }

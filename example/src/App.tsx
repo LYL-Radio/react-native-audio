@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native'
 import { Artwork, PlayPauseButton, ProgressBar, StopButton } from './components'
 
 const media: Source = {
-  uri: 'https://www.mfiles.co.uk/mp3-downloads/prelude04.mp3',
+  uri: 'https://upload.wikimedia.org/wikipedia/commons/a/ae/VariationsInAMajorsouvenirDePaganiniB.37.mp3',
   title: 'Prelude in E minor Op.28 No.4',
   artwork:
     'https://upload.wikimedia.org/wikipedia/commons/e/e8/Frederic_Chopin_photo.jpeg',

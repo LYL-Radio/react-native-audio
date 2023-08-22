@@ -162,7 +162,7 @@ class AudioService: HeadlessJsTaskService(), Player.Listener {
 
       override fun createCurrentContentIntent(player: Player): PendingIntent? {
         val intent = Intent(context, AudioService::class.java)
-        return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+        return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
       }
 
       override fun getCurrentContentTitle(player: Player): String {
@@ -274,7 +274,7 @@ class AudioService: HeadlessJsTaskService(), Player.Listener {
   @MainThread
   fun stop() {
     player.playWhenReady = false
-    player.stop(true)
+    player.stop()
     audio = null
     stopProgressListener()
     stopForeground(true)
