@@ -6,12 +6,12 @@ React Native audio library with background capabilities on both iOS and Android.
 
 Install from the command line:
 ```
-$ npm install @lyl-radio/react-native-audio@0.7.0
+$ npm install @lyl-radio/react-native-audio@0.8.0
 ```
 
 Install via package.json:
 ```
-"@lyl-radio/react-native-audio": "0.7.0"
+"@lyl-radio/react-native-audio": "0.8.0"
 ```
 
 ## Usage
@@ -34,8 +34,6 @@ type Source = {
   album?: string
   artist?: string
   albumArtist?: string
-  text?: string // Android only
-  subtext?: string // Android only
 }
 ```
 
