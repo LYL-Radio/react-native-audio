@@ -4,13 +4,6 @@ import MediaPlayer
 
 @objc(Audio)
 class Audio: RCTEventEmitter {
-
-    struct Source {
-        let uri: URL
-        var metadata: [String: Any]
-        var artwork: MPMediaItemArtwork?
-    }
-
     // Events
     static let PlayerStateEvent = "player-state"
     static let PlayerProgressEvent = "player-progress"
@@ -26,7 +19,8 @@ class Audio: RCTEventEmitter {
     private let queue: DispatchQueue
 
     private var player: AVPlayer?
-    private var source: Source?
+    private var currentAssetURL: URL?
+    private let artworkCache = NSCache<NSURL, MPMediaItemArtwork>()
 
     // Observers
     private var statusObserver: NSKeyValueObservation?
@@ -147,7 +141,6 @@ class Audio: RCTEventEmitter {
         else { return }
 
         switch type {
-
         case .began:
             player?.pause()
 
@@ -160,46 +153,29 @@ class Audio: RCTEventEmitter {
         }
     }
 
-    private func reset() {
-
-        if let observer = timeObserverToken {
-            player?.removeTimeObserver(observer)
-        }
-
-        statusObserver = nil
-        timeControlStatusObserver = nil
-        timeObserverToken = nil
-        source = nil
-        player = nil
-    }
-
     // Module CMD
 
-    @objc(play:resolver:rejecter:)
-    public func play(data: [String: Any], resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
-
+    @objc(source:resolver:rejecter:)
+    public func source(data: [String: Any], resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
         guard
             let str = data["uri"] as? String,
             let uri = URL(string: str)
         else { return reject("audio_play", "Invalid track URL", nil) }
 
-        if source?.uri == uri {
-            return resume(resolve: resolve, reject: reject)
+        if currentAssetURL == uri {
+            updateNowPlayingInfo(metadata: data)
+            return resolve(nil)
         }
 
-        // reset current player
-        reset()
-
-        source = Source(uri: uri, metadata: data, artwork: nil)
+        if let observer = timeObserverToken {
+            player?.removeTimeObserver(observer)
+        }
 
         let player = AVPlayer(url: uri)
-
-        DispatchQueue.main.sync {
-            UIApplication.shared.beginReceivingRemoteControlEvents()
-        }
+        currentAssetURL = uri
 
         statusObserver = player.observe(\.status) { [weak self] player, change in
-            self?.setNowPlayingPlaybackInfo()
+            self?.updateNowPlayingInfo(player: player)
 
             switch player.status {
             case .readyToPlay: resolve(nil)
@@ -209,7 +185,7 @@ class Audio: RCTEventEmitter {
         }
 
         timeControlStatusObserver = player.observe(\.timeControlStatus) { [weak self] player, change in
-            self?.setNowPlayingPlaybackInfo()
+            self?.updateNowPlayingInfo(player: player)
 
             switch player.timeControlStatus {
             case .paused:
@@ -232,20 +208,11 @@ class Audio: RCTEventEmitter {
         }
 
         self.player = player
-        player.play()
-
-        setNowPlayingMetadata()
+        setNowPlayingInfo(metadata: data)
     }
 
-    @objc(update:resolver:rejecter:)
-    public func update(metadata: [String: Any], resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
-        source?.metadata = metadata
-        setNowPlayingMetadata()
-        resolve(nil)
-    }
-
-    @objc(resume:rejecter:)
-    public func resume(resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+    @objc(play:rejecter:)
+    public func play(resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
         player?.play()
         resolve(nil)
     }
@@ -266,67 +233,67 @@ class Audio: RCTEventEmitter {
     @objc(stop:rejecter:)
     public func stop(resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
         player?.pause()
-        reset()
-
-        DispatchQueue.main.sync {
-            UIApplication.shared.endReceivingRemoteControlEvents()
-        }
+        player?.seek(to: .zero)
         resolve(nil)
     }
 }
 
 private extension Audio {
 
-    func setNowPlayingMetadata() {
-        guard let source = source else { return }
-
+    func setNowPlayingInfo(metadata: [String: Any]) {
         let center = MPNowPlayingInfoCenter.default()
 
         // Define Now Playing Info
         var info: [String: Any] = [:]
+        if #available(iOS 10.3, *) {
+            info[MPNowPlayingInfoPropertyAssetURL] = currentAssetURL
+        }
 
         info[MPNowPlayingInfoPropertyMediaType] = MPNowPlayingInfoMediaType.audio.rawValue
-        info[MPNowPlayingInfoPropertyDefaultPlaybackRate] = 1.0
-        info[MPMediaItemPropertyTitle] = source.metadata["title"]
-        info[MPMediaItemPropertyAlbumTitle] = source.metadata["album"]
-        info[MPMediaItemPropertyArtist] = source.metadata["artist"]
-        info[MPMediaItemPropertyAlbumArtist] = source.metadata["albumArtist"]
-
-        if #available(iOS 10.3, *) {
-            info[MPNowPlayingInfoPropertyAssetURL] = source.uri
-        }
-
-        if let artwork = source.artwork {
-            info[MPMediaItemPropertyArtwork] = artwork
-        } else {
-            downloadArtwork(completion: setNowPlayingMetadata)
-        }
+        info[MPNowPlayingInfoPropertyDefaultPlaybackRate] = 0
+        info[MPMediaItemPropertyTitle] = metadata["title"]
+        info[MPMediaItemPropertyAlbumTitle] = metadata["album"]
+        info[MPMediaItemPropertyArtist] = metadata["artist"]
+        info[MPMediaItemPropertyAlbumArtist] = metadata["albumArtist"]
+        info[MPMediaItemPropertyArtwork] = artwork(metadata["artwork"])
 
         // Set the metadata
         center.nowPlayingInfo = info
     }
 
-    func setNowPlayingPlaybackInfo() {
+    func updateNowPlayingInfo(metadata: [String: Any]) {
+        let center = MPNowPlayingInfoCenter.default()
 
+        // Define Now Playing Info
+        var info: [String: Any] = center.nowPlayingInfo ?? [:]
+        info[MPMediaItemPropertyTitle] = metadata["title"]
+        info[MPMediaItemPropertyAlbumTitle] = metadata["album"]
+        info[MPMediaItemPropertyArtist] = metadata["artist"]
+        info[MPMediaItemPropertyAlbumArtist] = metadata["albumArtist"]
+        info[MPMediaItemPropertyArtwork] = artwork(metadata["artwork"])
+
+        // Set the metadata
+        center.nowPlayingInfo = info
+    }
+
+    func updateNowPlayingInfo(player: AVPlayer) {
         // Get the shared MPRemoteCommandCenter
         let cmd = MPRemoteCommandCenter.shared()
 
         let center = MPNowPlayingInfoCenter.default()
 
         // Define Now Playing Info
-        var info: [String: Any] = center.nowPlayingInfo ?? [:]
+        var info = center.nowPlayingInfo ?? [:]
 
-        info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = player?.currentTime().seconds
-        info[MPMediaItemPropertyPlaybackDuration] = player?.currentItem?.duration.seconds
-        info[MPNowPlayingInfoPropertyPlaybackRate] = player?.rate
+        info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = player.currentTime().seconds
+        info[MPMediaItemPropertyPlaybackDuration] = player.currentItem?.duration.seconds
+        info[MPNowPlayingInfoPropertyPlaybackRate] = player.rate
 
-        let duration = player?.currentItem?.duration ?? .invalid
+        let duration = player.currentItem?.duration ?? .invalid
         info[MPNowPlayingInfoPropertyIsLiveStream] = duration.isIndefinite
 
         if duration.isNumeric {
             sendEvent(withName: Audio.PlayerDurationEvent, body: duration.seconds)
-        } else {
-            sendEvent(withName: Audio.PlayerDurationEvent, body: -1)
         }
 
         // Set the metadata
@@ -334,18 +301,48 @@ private extension Audio {
         cmd.changePlaybackPositionCommand.isEnabled = !duration.isIndefinite
     }
 
-    func downloadArtwork(completion: @escaping () -> Void) {
+    func download(artwork: Any?, completion: @escaping (MPMediaItemArtwork) -> Void) {
         guard
-            let artwork = source?.metadata["artwork"] as? String,
+            let artwork = artwork as? String,
             let url = URL(string: artwork)
         else { return }
 
-        DispatchQueue.global(qos: .background).async { [weak self] in
-            guard let data = try? Data(contentsOf: url), let image = UIImage(data: data) else { return }
+        DispatchQueue.global(qos: .background).async {
+            guard
+                let data = try? Data(contentsOf: url),
+                let image = UIImage(data: data)
+            else { return }
             let artwork = MPMediaItemArtwork(boundsSize: image.size) { size in image }
-            self?.source?.artwork = artwork
-            completion()
+            completion(artwork)
         }
+    }
+
+    func artwork(_ key: Any?) -> MPMediaItemArtwork? {
+        guard
+            let key = key as? String,
+            let url = NSURL(string: key)
+        else { return nil }
+
+        if let artwork = artworkCache.object(forKey: url) {
+            return artwork
+        }
+
+        DispatchQueue.global(qos: .background).async { [weak self] in
+            guard
+                let self = self,
+                let data = try? Data(contentsOf: url as URL),
+                let image = UIImage(data: data)
+            else { return }
+            let artwork = MPMediaItemArtwork(boundsSize: image.size) { size in image }
+            self.artworkCache.setObject(artwork, forKey: url)
+
+            let center = MPNowPlayingInfoCenter.default()
+            var info = center.nowPlayingInfo ?? [:]
+            info[MPMediaItemPropertyArtwork] = artwork
+            center.nowPlayingInfo = info
+        }
+
+        return nil
     }
 }
 

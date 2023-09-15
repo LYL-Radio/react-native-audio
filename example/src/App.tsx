@@ -5,8 +5,8 @@ import { StyleSheet, View } from 'react-native'
 import { Artwork, PlayPauseButton, ProgressBar, StopButton } from './components'
 
 const media: Source = {
-  uri: 'https://upload.wikimedia.org/wikipedia/commons/a/ae/VariationsInAMajorsouvenirDePaganiniB.37.mp3',
-  title: 'Prelude in E minor Op.28 No.4',
+  uri: 'https://upload.wikimedia.org/wikipedia/commons/a/a0/Allegro_de_Concert_Op._46_in_A_Major.mp3',
+  title: 'Allegro de concert, Op. 46',
   artwork:
     'https://upload.wikimedia.org/wikipedia/commons/e/e8/Frederic_Chopin_photo.jpeg',
   artist: 'Frédéric Chopin',
@@ -34,7 +34,9 @@ export default function App(): React.ReactElement {
           onPlay={() => Audio.play(media)}
           onPause={() => Audio.pause()}
         />
-        <StopButton style={styles.control} onStop={Audio.stop} />
+        <StopButton
+         style={styles.control} 
+         onStop={() => Audio.stop()} />
       </View>
     </View>
   )
@@ -45,6 +47,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'white'
   },
 
   artwork: {

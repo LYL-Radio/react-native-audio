@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react'
 import {
-  AppRegistry,
   DeviceEventEmitter,
   EmitterSubscription,
   NativeEventEmitter,
   NativeModules,
   Platform,
-  TaskProvider,
 } from 'react-native'
 // @ts-ignore
 import resolveAssetSource from 'react-native/Libraries/Image/resolveAssetSource'
@@ -22,30 +20,20 @@ function resolveAsset(source?: number | string) {
   return resolveAssetSource(source)?.uri || source
 }
 
-function registerAudioService(task: TaskProvider) {
-  if (Platform.OS === 'android') {
-    // Registers the headless task
-    AppRegistry.registerHeadlessTask('react-native-audio', task)
-  } else {
-    // Initializes and runs the service in the next tick
-    setImmediate(task())
-  }
-}
-
 // MARK: - Audio Controls
 
-const play = (source: Source): Promise<void> => {
+const play = (source?: Source): Promise<void> => {
+  if (!source) return Audio.play()
   source = { ...source }
 
   source.uri = resolveAsset(source.uri)
   source.artwork = resolveAsset(source.artwork)
 
-  return Audio.play(source)
+  return Audio.source(source).then(() => Audio.play())
 }
 
 const seekTo = (position: number): Promise<void> => Audio.seekTo(position)
 const pause = (): Promise<void> => Audio.pause()
-const resume = (): Promise<void> => Audio.resume()
 const stop = (): Promise<void> => Audio.stop()
 
 // MARK: - Data
@@ -71,8 +59,6 @@ export type Source = {
   album?: string
   artist?: string
   albumArtist?: string
-  text?: string // Android only
-  subtext?: string // Android only
 }
 
 /**
@@ -140,11 +126,9 @@ export const usePlayerProgress = (): number => {
 }
 
 export default {
-  registerAudioService,
   addListener,
   play,
   seekTo,
   pause,
-  resume,
   stop,
 }

@@ -1,12 +1,22 @@
 package lyl.reactnativeaudio
 
 import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
 import android.net.Uri
-import android.os.IBinder
+import android.os.Handler
+import android.util.Log
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.common.Timeline
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
 import com.facebook.react.bridge.*
+import com.facebook.react.modules.core.DeviceEventManagerModule
+import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.MoreExecutors
+import kotlin.math.max
 
 class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
@@ -25,11 +35,27 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
   }
 
   private val context = reactContext
-  private var service: AudioService? = null
+  private lateinit var controllerFuture: ListenableFuture<MediaController>
+  private val controller: MediaController?
+    get() = if (controllerFuture.isDone) controllerFuture.get() else null
+  private var progressHandler: Handler? = null
 
-  override fun getName(): String { return "Audio" }
+  override fun getName() = "Audio"
+  override fun hasConstants() = true
 
-  override fun hasConstants(): Boolean { return true }
+  override fun initialize() {
+    super.initialize()
+
+    controllerFuture =
+      MediaController.Builder(
+        context,
+        SessionToken(context, ComponentName(context, AudioService::class.java))
+      ).buildAsync()
+
+    controllerFuture.addListener({
+      controller?.addListener(playerListener)
+    }, MoreExecutors.directExecutor())
+  }
 
   override fun getConstants(): MutableMap<String, Any> {
     return mutableMapOf(
@@ -45,19 +71,58 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     )
   }
 
+  private fun sendEvent(eventName: String, params: Any?) {
+    context
+      .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+      ?.emit(eventName, params)
+  }
+
+  private fun startProgressListener() {
+    if (progressHandler != null) return
+    val controller = controller ?: return
+    progressHandler = Handler(controller.applicationLooper)
+    progressHandler?.post(onPlayerProgressChanged)
+  }
+
+  private fun stopProgressListener() {
+    progressHandler?.removeCallbacks(onPlayerProgressChanged)
+    progressHandler = null
+  }
+
+  private fun metadata(data: ReadableMap): MediaMetadata {
+    return MediaMetadata.Builder()
+      .setTitle(data.getString("title"))
+      .setAlbumTitle(data.getString("album"))
+      .setArtist(data.getString("artist"))
+      .setAlbumArtist(data.getString("albumArtist"))
+      .setArtworkUri(
+        data.getString("artwork").let { Uri.parse(it) }
+      )
+      .build()
+  }
+
   // Module CMD
 
   @ReactMethod
-  fun play(data: ReadableMap, promise: Promise) {
+  fun source(data: ReadableMap, promise: Promise) {
     try {
-      val string = data.getString("uri") ?: throw IllegalArgumentException("uri field required")
-      val uri = Uri.parse(string)
+      val controller = controller ?: throw IllegalArgumentException("Audio module not initialized")
+      val uri = data.getString("uri") ?: throw IllegalArgumentException("uri field required")
 
-      if (uri == service?.audio?.uri) return resume(promise)
+      // Build the media item.
+      val mediaItem = MediaItem.Builder()
+        .setUri(uri)
+        .setMediaId(uri)
+        .setMediaMetadata(metadata(data))
+        .build()
 
-      val audio = AudioService.Audio(uri, data.toHashMap())
-      bindAudioService(audio)
+      if (uri == controller.currentMediaItem?.mediaId) {
+        controller.replaceMediaItem(0, mediaItem)
+        return promise.resolve(null)
+      }
 
+      // Set the media item to be played.
+      controller.setMediaItem(mediaItem)
       promise.resolve(null)
     } catch (e: Exception) {
       promise.reject(e)
@@ -65,83 +130,75 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
   }
 
   @ReactMethod
-  fun update(data: ReadableMap, promise: Promise) {
-    context.runOnUiQueueThread {
-      service?.prepareNotification(context, data.toHashMap())
-      promise.resolve(null)
-    }
+  fun play(promise: Promise) {
+    controller?.prepare()
+    controller?.play()
+    promise.resolve(null)
   }
 
   @ReactMethod
   fun seekTo(position: Double, promise: Promise) {
-    context.runOnUiQueueThread {
-      service?.seekTo(position)
-      promise.resolve(null)
-    }
+    val positionMs = position.toLong() * 1000
+    controller?.seekTo(positionMs)
+    promise.resolve(null)
   }
 
   @ReactMethod
   fun pause(promise: Promise) {
-    context.runOnUiQueueThread {
-      service?.playWhenReady(false)
-      promise.resolve(null)
-    }
-  }
-
-  @ReactMethod
-  fun resume(promise: Promise) {
-    context.runOnUiQueueThread {
-      service?.playWhenReady(true)
-      promise.resolve(null)
-    }
+    controller?.pause()
+    promise.resolve(null)
   }
 
   @ReactMethod
   fun stop(promise: Promise) {
-    context.runOnUiQueueThread {
-      service?.stop()
-      unbindAudioService()
-      promise.resolve(null)
+    controller?.stop()
+    controller?.seekTo(0)
+    promise.resolve(null)
+  }
+
+  // Player.Listener
+
+  private val playerListener = object : Player.Listener {
+    override fun onIsPlayingChanged(isPlaying: Boolean) {
+      if (isPlaying) {
+        startProgressListener()
+        sendEvent(PLAYER_STATE_EVENT, PLAYER_STATE_PLAYING)
+      } else {
+        sendEvent(PLAYER_STATE_EVENT, PLAYER_STATE_PAUSED)
+        stopProgressListener()
+      }
+    }
+
+    override fun onPlaybackStateChanged(playbackState: Int) {
+      when (playbackState) {
+        Player.STATE_BUFFERING -> sendEvent(PLAYER_STATE_EVENT, PLAYER_STATE_BUFFERING)
+        Player.STATE_ENDED -> sendEvent(PLAYER_STATE_EVENT, PLAYER_STATE_ENDED)
+        Player.STATE_IDLE -> { sendEvent(PLAYER_STATE_EVENT, PLAYER_STATE_PAUSED) }
+        Player.STATE_READY -> { }
+      }
+    }
+
+    override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+      val controller = controller ?: return
+      if (controller.duration == C.TIME_UNSET) return
+      val duration = controller.duration / 1000
+      sendEvent(PLAYER_DURATION_EVENT, duration.toDouble())
+    }
+
+    override fun onPlayerError(error: PlaybackException) {
+      sendEvent(PLAYER_STATE_EVENT, PLAYER_STATE_UNKNOWN)
     }
   }
 
-  // Audio Service Binding
+  // Progress Listener
 
-  private val connection = object : ServiceConnection {
+  private val onPlayerProgressChanged = object : Runnable {
+    override fun run() {
+      val controller = controller ?: return
+      progressHandler?.postDelayed(this, 200)
 
-    var audio: AudioService.Audio? = null
-
-    override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-      val binder = binder as AudioService.AudioServiceBinder
-      service = binder.service
-
-      val audio = audio ?: return
-      prepareAudioService(audio)
-    }
-
-    override fun onServiceDisconnected(name: ComponentName?) {
-      service = null
-    }
-  }
-
-  private fun bindAudioService(audio: AudioService.Audio) {
-    if (service != null) return prepareAudioService(audio)
-
-    connection.audio = audio
-    Intent(context, AudioService::class.java).also { intent ->
-      context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
-    }
-  }
-
-  private fun unbindAudioService() {
-    if (service == null) return
-    context.unbindService(connection)
-    service = null
-  }
-
-  private fun prepareAudioService(audio: AudioService.Audio) {
-    context.runOnUiQueueThread {
-      service?.preparePlayer(context, audio)
+      val position = max(0, controller.currentPosition / 1000)
+      sendEvent(PLAYER_PROGRESS_EVENT, position.toDouble())
     }
   }
 }

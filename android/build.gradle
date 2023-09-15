@@ -8,7 +8,7 @@ buildscript {
   }
 
   dependencies {
-    classpath "com.android.tools.build:gradle:8.1.0"
+    classpath "com.android.tools.build:gradle:8.1.1"
     // noinspection DifferentKotlinGradleVersion
     classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
   }
@@ -73,8 +73,11 @@ def kotlin_version = getExtOrDefault("kotlinVersion")
 def rn_version = new File(['node', '--print',"JSON.parse(require('fs').readFileSync(require.resolve('react-native/package.json'), 'utf-8')).version"].execute(null, rootDir).text.trim())
 
 dependencies {
-  implementation 'com.google.android.exoplayer:exoplayer:2.19.1'
-  implementation 'com.google.android.exoplayer:extension-mediasession:2.19.1'
+  implementation 'androidx.media3:media3-exoplayer:1.2.0-alpha01'
+  implementation 'androidx.media3:media3-session:1.2.0-alpha01'
+  implementation 'androidx.media3:media3-exoplayer-dash:1.2.0-alpha01'
+  implementation 'androidx.media3:media3-exoplayer-hls:1.2.0-alpha01'
+
   // For < 0.71, this will be from the local maven repo
   // For > 0.71, this will be replaced by `com.facebook.react:react-android:$version` by react gradle plugin
   //noinspection GradleDynamicVersion
