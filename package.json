@@ -26,8 +26,7 @@
     "!xcuserdata"
   ],
   "scripts": {
-    "postinstall": "yarn --cwd example install",
-    "prepare": "yarn compile",
+    "prepare": "yarn compile && yarn example",
     "compile": "rm -rf lib && tsc -p .",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "example": "yarn --cwd example"
