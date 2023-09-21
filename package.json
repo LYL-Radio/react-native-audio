@@ -1,6 +1,6 @@
 {
   "name": "@lyl-radio/react-native-audio",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "React Native audio library",
   "homepage": "https://github.com/LYL-Radio/react-native-audio",
   "main": "lib/index.js",
