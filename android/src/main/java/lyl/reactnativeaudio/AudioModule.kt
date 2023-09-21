@@ -131,8 +131,8 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
   @ReactMethod
   fun play(promise: Promise) {
+    controller?.playWhenReady = true
     controller?.prepare()
-    controller?.play()
     promise.resolve(null)
   }
 
@@ -145,12 +145,13 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
   @ReactMethod
   fun pause(promise: Promise) {
-    controller?.pause()
+    controller?.playWhenReady = false
     promise.resolve(null)
   }
 
   @ReactMethod
   fun stop(promise: Promise) {
+    controller?.playWhenReady = false
     controller?.stop()
     controller?.seekTo(0)
     promise.resolve(null)
@@ -160,33 +161,36 @@ class AudioModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
   private val playerListener = object : Player.Listener {
     override fun onIsPlayingChanged(isPlaying: Boolean) {
-      if (isPlaying) {
-        startProgressListener()
+      if (isPlaying) startProgressListener()
+      else stopProgressListener()
+    }
+
+    override fun onEvents(player: Player, events: Player.Events) {
+      if (events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED)) {
+        when (player.playbackState) {
+          Player.STATE_BUFFERING -> sendEvent(PLAYER_STATE_EVENT, PLAYER_STATE_BUFFERING)
+          Player.STATE_ENDED -> sendEvent(PLAYER_STATE_EVENT, PLAYER_STATE_ENDED)
+          Player.STATE_IDLE -> {}
+          Player.STATE_READY -> {}
+        }
+      }
+
+      if (events.contains(Player.EVENT_IS_PLAYING_CHANGED) && player.isPlaying) {
         sendEvent(PLAYER_STATE_EVENT, PLAYER_STATE_PLAYING)
-      } else {
+      }
+
+      if (events.contains(Player.EVENT_PLAY_WHEN_READY_CHANGED) && !player.playWhenReady) {
         sendEvent(PLAYER_STATE_EVENT, PLAYER_STATE_PAUSED)
-        stopProgressListener()
       }
-    }
 
-    override fun onPlaybackStateChanged(playbackState: Int) {
-      when (playbackState) {
-        Player.STATE_BUFFERING -> sendEvent(PLAYER_STATE_EVENT, PLAYER_STATE_BUFFERING)
-        Player.STATE_ENDED -> sendEvent(PLAYER_STATE_EVENT, PLAYER_STATE_ENDED)
-        Player.STATE_IDLE -> { sendEvent(PLAYER_STATE_EVENT, PLAYER_STATE_PAUSED) }
-        Player.STATE_READY -> { }
+      if (events.contains(Player.EVENT_TIMELINE_CHANGED) && player.duration != C.TIME_UNSET) {
+        val duration = player.duration / 1000
+        sendEvent(PLAYER_DURATION_EVENT, duration.toDouble())
       }
-    }
 
-    override fun onTimelineChanged(timeline: Timeline, reason: Int) {
-      val controller = controller ?: return
-      if (controller.duration == C.TIME_UNSET) return
-      val duration = controller.duration / 1000
-      sendEvent(PLAYER_DURATION_EVENT, duration.toDouble())
-    }
-
-    override fun onPlayerError(error: PlaybackException) {
-      sendEvent(PLAYER_STATE_EVENT, PLAYER_STATE_UNKNOWN)
+      if (events.contains(Player.EVENT_PLAYER_ERROR)) {
+        sendEvent(PLAYER_STATE_EVENT, PLAYER_STATE_UNKNOWN)
+      }
     }
   }
 
